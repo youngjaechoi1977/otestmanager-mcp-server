@@ -1,0 +1,17 @@
+{
+  "name": "otestmanager-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP server exposing OTestManager2026 project data (test cases, sessions, results, bugs) to external LLM clients via a project-scoped API key.",
+  "bin": {
+    "otestmanager-mcp": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.23.8"
+  }
+}

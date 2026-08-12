@@ -42,6 +42,14 @@ async function callApi(path, options = {}) {
   return body;
 }
 
+// Builds a query string from only the params the caller actually passed (undefined values
+// are dropped) — used by the search/filter tools that layer optional filters onto a list_* GET.
+function qs(params) {
+  const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '');
+  if (entries.length === 0) return '';
+  return '?' + entries.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
+}
+
 function textResult(data) {
   return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
 }
@@ -262,11 +270,13 @@ server.registerTool(
 server.registerTool(
   'list_requirements',
   {
-    title: '요구사항 목록 조회',
-    description: '이 API 키에 연결된 프로젝트의 요구사항 목록을 가져옵니다.',
-    inputSchema: {},
+    title: '요구사항 목록 조회 / 검색',
+    description: '이 API 키에 연결된 프로젝트의 요구사항 목록을 가져옵니다. q를 넘기면 ID/내용에서 검색합니다.',
+    inputSchema: {
+      q: z.string().optional().describe('요구사항 ID(code) 또는 내용에 포함된 검색어 (대소문자 무시)'),
+    },
   },
-  async () => textResult(await callApi('/requirements'))
+  async ({ q } = {}) => textResult(await callApi(`/requirements${qs({ q })}`))
 );
 
 server.registerTool(
@@ -298,14 +308,21 @@ server.registerTool(
 server.registerTool(
   'list_test_cases',
   {
-    title: '테스트 케이스 목록 조회',
+    title: '테스트 케이스 목록 조회 / 검색',
     description:
       '이 API 키에 연결된 프로젝트에 매칭된 테스트 케이스 목록을 가져옵니다. 각 케이스의 ' +
       'automationFileName/automationScript/automationScriptKind로 이미 자동화 스크립트가 첨부되어 ' +
-      '있는지, 어떤 종류(NODE_TS/JMETER/POSTMAN)인지 확인할 수 있습니다.',
-    inputSchema: {},
+      '있는지, 어떤 종류(NODE_TS/JMETER/POSTMAN)인지 확인할 수 있습니다. 필터를 하나도 넘기지 않으면 ' +
+      '전체 목록을 반환합니다.',
+    inputSchema: {
+      q: z.string().optional().describe('ID/제목/목적/입력값/기대결과에 포함된 검색어 (대소문자 무시)'),
+      priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
+      automationScriptKind: z.enum(['NODE_TS', 'JMETER', 'POSTMAN']).optional().describe('첨부된 자동화 스크립트 종류로 필터링'),
+      hasAutomation: z.boolean().optional().describe('true면 자동화 스크립트가 첨부된 케이스만, false면 없는 케이스만'),
+    },
   },
-  async () => textResult(await callApi('/test-cases'))
+  async ({ q, priority, automationScriptKind, hasAutomation } = {}) =>
+    textResult(await callApi(`/test-cases${qs({ q, priority, automationScriptKind, hasAutomation })}`))
 );
 
 server.registerTool(
@@ -625,13 +642,17 @@ server.registerTool(
 server.registerTool(
   'list_bugs',
   {
-    title: '결함 목록 조회',
-    description: '이 프로젝트에 등록된 결함 목록을 가져옵니다. status로 필터링할 수 있습니다.',
+    title: '결함 목록 조회 / 검색',
+    description: '이 프로젝트에 등록된 결함 목록을 가져옵니다. 필터를 하나도 넘기지 않으면 전체를 반환합니다.',
     inputSchema: {
-      status: z.enum(['OPEN', 'IN_PROGRESS', 'FIXED', 'CLOSED']).optional().describe('생략하면 전체 상태를 반환'),
+      status: z.enum(['OPEN', 'IN_PROGRESS', 'FIXED', 'CLOSED']).optional(),
+      severity: z.enum(['MINOR', 'MAJOR', 'CRITICAL']).optional(),
+      priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
+      q: z.string().optional().describe('ID/제목/설명/실제결과에 포함된 검색어 (대소문자 무시)'),
     },
   },
-  async ({ status }) => textResult(await callApi(`/bugs${status ? `?status=${status}` : ''}`))
+  async ({ status, severity, priority, q } = {}) =>
+    textResult(await callApi(`/bugs${qs({ status, severity, priority, q })}`))
 );
 
 server.registerTool(

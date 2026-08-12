@@ -44,10 +44,10 @@ npm install
 | `list_documents` | 프로젝트 첨부 문서 목록 |
 | `attach_document` | 프로젝트에 문서 첨부 (base64, 최대 10MB) |
 | `remove_document` | 프로젝트 첨부 문서 삭제 |
-| `list_requirements` | 프로젝트의 요구사항 목록 |
+| `list_requirements` | 프로젝트의 요구사항 목록 / `q`로 ID·내용 검색 |
 | `create_requirement` | 새 요구사항 등록 |
 | `update_requirement` | 기존 요구사항 내용 수정 (ID는 유지) |
-| `list_test_cases` | 프로젝트에 매칭된 테스트 케이스 목록 |
+| `list_test_cases` | 프로젝트에 매칭된 테스트 케이스 목록 / `q`(키워드), `priority`, `automationScriptKind`, `hasAutomation`으로 검색·필터링 |
 | `create_test_case` | 새 테스트 케이스 생성 + 프로젝트 매칭 |
 | `get_test_case` | 테스트 케이스 하나의 전체 상세 조회 (첨부된 자동화 스크립트 원문 포함) |
 | `update_test_case` | 테스트 케이스의 제목/목적/사전조건/입력값/기대결과/우선순위/스텝 수정 (전달한 필드만 변경) |
@@ -70,7 +70,7 @@ npm install
 | `get_automation_run_artifact` | 실행 결과의 첨부 파일(스크린샷/영상/.jtl 등)을 base64로 가져오기 (최대 10MB) |
 | `list_runners` | 프로젝트에 배정된 러너의 온라인 여부·실행 가능한 스크립트 종류(capabilities) 조회 — `run_case_automation` 호출 전 미리 확인용 |
 | `create_bug` | 결함 등록 (선택적으로 `roundId`를 넘기면 실행 사이클도 함께 기록) |
-| `list_bugs` | 결함 목록 조회 (status로 필터링 가능) |
+| `list_bugs` | 결함 목록 조회 / `status`·`severity`·`priority`·`q`(키워드)로 검색·필터링 |
 | `get_bug` | 결함 하나의 전체 상세 조회 |
 | `update_bug` | 결함 수정 및 상태 전이(OPEN→IN_PROGRESS→FIXED→CLOSED). 수정 전 내용은 이전 버전 이력으로 자동 보존 |
 | `get_project_summary` | 테스트 케이스 수/요구사항 커버리지/세션 수/상태별 결함 수를 한 번에 조회 |

@@ -282,6 +282,20 @@ server.registerTool(
 );
 
 server.registerTool(
+  'update_requirement',
+  {
+    title: '요구사항 내용 수정',
+    description: '기존 요구사항의 내용을 수정합니다. ID(code)는 바뀌지 않습니다.',
+    inputSchema: {
+      requirementId: z.string().describe('list_requirements로 조회한 요구사항 ID'),
+      text: z.string().describe('새 요구사항 내용'),
+    },
+  },
+  async ({ requirementId, text }) =>
+    textResult(await callApi(`/requirements/${requirementId}`, { method: 'PATCH', body: JSON.stringify({ text }) }))
+);
+
+server.registerTool(
   'list_test_cases',
   {
     title: '테스트 케이스 목록 조회',
@@ -313,6 +327,39 @@ server.registerTool(
     },
   },
   async (args) => textResult(await callApi('/test-cases', { method: 'POST', body: JSON.stringify(args) }))
+);
+
+server.registerTool(
+  'get_test_case',
+  {
+    title: '테스트 케이스 상세 조회',
+    description: '프로젝트에 매칭된 테스트 케이스 하나의 전체 상세(스텝, 첨부된 자동화 스크립트 원문 포함)를 가져옵니다.',
+    inputSchema: {
+      caseId: z.string().describe('list_test_cases로 조회한 프로젝트 매칭 케이스 ID'),
+    },
+  },
+  async ({ caseId }) => textResult(await callApi(`/test-cases/${caseId}`))
+);
+
+server.registerTool(
+  'update_test_case',
+  {
+    title: '테스트 케이스 내용 수정',
+    description:
+      '테스트 케이스의 제목/목적/사전조건/입력값/기대결과/우선순위/스텝을 수정합니다. 전달한 필드만 ' +
+      '바뀌고 나머지는 그대로 유지됩니다. 자동화 스크립트는 attach_automation_script로 별도 관리합니다.',
+    inputSchema: {
+      caseId: z.string().describe('list_test_cases로 조회한 프로젝트 매칭 케이스 ID'),
+      title: z.string().optional(),
+      purpose: z.string().optional(),
+      precondition: z.string().nullable().optional(),
+      input: z.string().optional(),
+      expectedResult: z.string().optional(),
+      priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
+      steps: z.array(z.object({ action: z.string(), expected: z.string() })).optional().describe('테스트 스텝 목록 (전달 시 전체 교체)'),
+    },
+  },
+  async ({ caseId, ...patch }) => textResult(await callApi(`/test-cases/${caseId}`, { method: 'PATCH', body: JSON.stringify(patch) }))
 );
 
 server.registerTool(
@@ -395,7 +442,20 @@ server.registerTool(
 );
 
 server.registerTool(
-  'set_case_requirements',
+  'get_case_requirements',
+  {
+    title: '세션 케이스가 검증하는 요구사항 조회',
+    description: '세션 내 특정 테스트 케이스가 현재 커버하는 요구사항 목록을 가져옵니다.',
+    inputSchema: {
+      sessionId: z.string(),
+      cycleCaseId: z.string().describe('list_session_cases로 조회한 세션 케이스 ID'),
+    },
+  },
+  async ({ sessionId, cycleCaseId }) => textResult(await callApi(`/sessions/${sessionId}/cases/${cycleCaseId}`))
+);
+
+server.registerTool(
+  'update_case_requirements',
   {
     title: '세션 케이스의 요구사항 커버리지 설정',
     description: '세션 내 특정 테스트 케이스가 검증하는 요구사항을 지정합니다. 호출할 때마다 전체 목록을 교체합니다(누적 아님).',
@@ -435,6 +495,17 @@ server.registerTool(
     inputSchema: { sessionId: z.string(), roundId: z.string() },
   },
   async ({ sessionId, roundId }) => textResult(await callApi(`/sessions/${sessionId}/rounds/${roundId}/results`))
+);
+
+server.registerTool(
+  'get_round_test_case_result',
+  {
+    title: '실행 회차의 케이스 하나의 결과 조회',
+    description: 'resultId를 이미 알고 있을 때(run_case_automation/record_result 이후 등) 전체 목록을 다시 받지 않고 그 결과 하나만 조회합니다.',
+    inputSchema: { sessionId: z.string(), roundId: z.string(), resultId: z.string() },
+  },
+  async ({ sessionId, roundId, resultId }) =>
+    textResult(await callApi(`/sessions/${sessionId}/rounds/${roundId}/results/${resultId}`))
 );
 
 server.registerTool(
@@ -549,6 +620,76 @@ server.registerTool(
     },
   },
   async (args) => textResult(await callApi('/bugs', { method: 'POST', body: JSON.stringify(args) }))
+);
+
+server.registerTool(
+  'list_bugs',
+  {
+    title: '결함 목록 조회',
+    description: '이 프로젝트에 등록된 결함 목록을 가져옵니다. status로 필터링할 수 있습니다.',
+    inputSchema: {
+      status: z.enum(['OPEN', 'IN_PROGRESS', 'FIXED', 'CLOSED']).optional().describe('생략하면 전체 상태를 반환'),
+    },
+  },
+  async ({ status }) => textResult(await callApi(`/bugs${status ? `?status=${status}` : ''}`))
+);
+
+server.registerTool(
+  'get_bug',
+  {
+    title: '결함 상세 조회',
+    description: '결함 하나의 전체 상세를 가져옵니다.',
+    inputSchema: { bugId: z.string().describe('list_bugs/create_bug로 조회한 결함 ID') },
+  },
+  async ({ bugId }) => textResult(await callApi(`/bugs/${bugId}`))
+);
+
+server.registerTool(
+  'update_bug',
+  {
+    title: '결함 수정',
+    description:
+      '결함의 필드를 수정하거나 상태를 전이시킵니다(OPEN→IN_PROGRESS→FIXED→CLOSED). 전달한 필드만 ' +
+      '바뀌고 나머지는 유지되며, 수정 전 상태는 이전 버전 이력으로 자동 보존됩니다.',
+    inputSchema: {
+      bugId: z.string().describe('list_bugs/create_bug로 조회한 결함 ID'),
+      title: z.string().optional(),
+      description: z.string().nullable().optional(),
+      targetSystem: z.string().nullable().optional(),
+      expectedResult: z.string().nullable().optional(),
+      actualResult: z.string().nullable().optional(),
+      reproSteps: z.string().nullable().optional(),
+      severity: z.enum(['MINOR', 'MAJOR', 'CRITICAL']).optional(),
+      priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
+      status: z.enum(['OPEN', 'IN_PROGRESS', 'FIXED', 'CLOSED']).optional(),
+    },
+  },
+  async ({ bugId, ...patch }) => textResult(await callApi(`/bugs/${bugId}`, { method: 'PATCH', body: JSON.stringify(patch) }))
+);
+
+server.registerTool(
+  'list_runners',
+  {
+    title: '연결된 러너 조회',
+    description:
+      '이 프로젝트에 배정된 러너(자동화 실행 에이전트)와 온라인 여부, 실행 가능한 스크립트 종류 ' +
+      '(capabilities: NODE_TS/JMETER/POSTMAN/APPIUM)를 조회합니다. run_case_automation 호출 전 ' +
+      '실행 가능한 러너가 있는지 미리 확인할 때 씁니다.',
+    inputSchema: {},
+  },
+  async () => textResult(await callApi('/runners'))
+);
+
+server.registerTool(
+  'get_project_summary',
+  {
+    title: '프로젝트 현황 요약',
+    description:
+      '테스트 케이스 수, 요구사항 수와 커버리지, 세션 수, 상태별 결함 수를 한 번에 조회합니다. ' +
+      '여러 list_* 도구를 조합하지 않고 프로젝트 전반 현황을 빠르게 파악할 때 씁니다.',
+    inputSchema: {},
+  },
+  async () => textResult(await callApi('/summary'))
 );
 
 const transport = new StdioServerTransport();

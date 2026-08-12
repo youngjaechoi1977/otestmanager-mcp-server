@@ -46,24 +46,34 @@ npm install
 | `remove_document` | 프로젝트 첨부 문서 삭제 |
 | `list_requirements` | 프로젝트의 요구사항 목록 |
 | `create_requirement` | 새 요구사항 등록 |
+| `update_requirement` | 기존 요구사항 내용 수정 (ID는 유지) |
 | `list_test_cases` | 프로젝트에 매칭된 테스트 케이스 목록 |
 | `create_test_case` | 새 테스트 케이스 생성 + 프로젝트 매칭 |
+| `get_test_case` | 테스트 케이스 하나의 전체 상세 조회 (첨부된 자동화 스크립트 원문 포함) |
+| `update_test_case` | 테스트 케이스의 제목/목적/사전조건/입력값/기대결과/우선순위/스텝 수정 (전달한 필드만 변경) |
 | `get_automation_script_guide` | 스크립트 작성 전 참고할 가이드 — kind별(NODE_TS/JMETER/POSTMAN) 작성 규칙 + 실제 동작하는 예시 스크립트 |
-| `attach_automation_script` | 테스트 케이스에 자동화 스크립트 첨부/교체 — 파일 확장자로 종류 자동 판별 (.ts: Node.js/Playwright/Appium, .jmx: JMeter, .json: Postman/Newman, 셋 다 러너에서 실행 가능). 이전 스크립트는 버전 이력으로 보관 |
+| `attach_automation_script` | 테스트 케이스에 자동화 스크립트 첨부/교체(=수정) — 파일 확장자로 종류 자동 판별 (.ts: Node.js/Playwright/Appium, .jmx: JMeter, .json: Postman/Newman, 셋 다 러너에서 실행 가능). 이전 스크립트는 버전 이력으로 보관 |
 | `remove_automation_script` | 테스트 케이스의 자동화 스크립트 제거 (마찬가지로 버전 이력에 보관) |
 | `list_automation_script_versions` | 자동화 스크립트 이전 버전 이력 조회 |
 | `list_sessions` | 세션(실행 사이클) 목록 |
 | `create_session` | 새 세션 생성 (매칭된 케이스 자동 포함, 기본 "실행" 회차 생성) |
 | `list_session_cases` | 세션에 포함된 케이스 목록 |
 | `add_case_to_session` | 이미 존재하는 세션에 케이스 추가 (create_session은 호출 시점 매칭 케이스만 포함하므로, 나중에 만들거나 매칭한 케이스는 이걸로 추가) |
-| `set_case_requirements` | 세션 케이스가 검증하는 요구사항 지정 (요구사항 커버리지) |
+| `get_case_requirements` | 세션 케이스가 현재 검증하는 요구사항 목록 조회 |
+| `update_case_requirements` | 세션 케이스가 검증하는 요구사항 지정 (요구사항 커버리지, 호출마다 전체 교체) |
 | `list_rounds` | 세션의 실행 회차 목록 |
-| `get_round_results` | 실행 회차의 케이스별 결과 |
+| `get_round_results` | 실행 회차의 케이스별 결과 전체 목록 |
+| `get_round_test_case_result` | 실행 회차의 결과 하나만 조회 (resultId를 이미 알고 있을 때, 전체 목록 재조회 없이) |
 | `record_result` | 실행 결과 직접 기록 (Pass/Fail/Blocked/N/A) — 자동화 스크립트가 없는 케이스나 수동 판단 결과용 |
 | `run_case_automation` | 케이스에 첨부된 자동화 스크립트를 실제 연결된 러너에서 실행하고 결과를 반영 |
 | `get_automation_run_status` | `run_case_automation`이 시간 내 끝나지 않았을 때 최종 결과(로그, 아티팩트 목록 포함) 재확인 |
 | `get_automation_run_artifact` | 실행 결과의 첨부 파일(스크린샷/영상/.jtl 등)을 base64로 가져오기 (최대 10MB) |
+| `list_runners` | 프로젝트에 배정된 러너의 온라인 여부·실행 가능한 스크립트 종류(capabilities) 조회 — `run_case_automation` 호출 전 미리 확인용 |
 | `create_bug` | 결함 등록 (선택적으로 `roundId`를 넘기면 실행 사이클도 함께 기록) |
+| `list_bugs` | 결함 목록 조회 (status로 필터링 가능) |
+| `get_bug` | 결함 하나의 전체 상세 조회 |
+| `update_bug` | 결함 수정 및 상태 전이(OPEN→IN_PROGRESS→FIXED→CLOSED). 수정 전 내용은 이전 버전 이력으로 자동 보존 |
+| `get_project_summary` | 테스트 케이스 수/요구사항 커버리지/세션 수/상태별 결함 수를 한 번에 조회 |
 
 API 키로 직접 기록한 실행 결과·결함에는 "🔑 (키 이름)" 배지가 붙어, 사람이 실행한 것과 구분됩니다.
 자동화 스크립트가 첨부된 케이스는 `record_result`로 직접 판정하지 말고 `run_case_automation`을 사용하세요 —

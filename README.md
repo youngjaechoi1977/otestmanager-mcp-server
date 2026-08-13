@@ -72,7 +72,7 @@ npm install
 | `create_bug` | 결함 등록 (선택적으로 `roundId`를 넘기면 실행 사이클도 함께 기록) |
 | `list_bugs` | 결함 목록 조회 / `status`·`severity`·`priority`·`q`(키워드)로 검색·필터링 |
 | `get_bug` | 결함 하나의 전체 상세 조회 |
-| `update_bug` | 결함 수정 및 상태 전이(OPEN→IN_PROGRESS→FIXED→CLOSED). 수정 전 내용은 이전 버전 이력으로 자동 보존 |
+| `update_bug` | 결함 수정 및 상태 전이(OPEN→IN_PROGRESS→FIXED→CLOSED), 연관된 실행 사이클(`roundId`)·세션 케이스(`cycleCaseId`) 재지정/해제(null). 수정 전 내용은 이전 버전 이력으로 자동 보존 |
 | `get_project_summary` | 테스트 케이스 수/요구사항 커버리지/세션 수/상태별 결함 수를 한 번에 조회 |
 
 API 키로 직접 기록한 실행 결과·결함에는 "🔑 (키 이름)" 배지가 붙어, 사람이 실행한 것과 구분됩니다.

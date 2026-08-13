@@ -105,8 +105,9 @@ const SCRIPT_GUIDES = {
     '}\n' +
     '```\n\n' +
     '### Appium (모바일 앱, webdriverio)\n' +
-    '별도로 떠 있는 Appium 서버 + 연결된 기기/에뮬레이터가 필요합니다 (러너가 대신 띄우지 않음). ' +
-    'capabilities는 실제 연결된 기기/앱에 맞게 채워야 합니다.\n' +
+    'Appium 서버는 러너의 `appium` CLI가 설치되어 있으면 러너가 자동으로 함께 띄우지만(포트 4723), ' +
+    '연결할 실제 기기/에뮬레이터는 러너가 대신 준비해주지 않습니다 — 미리 연결되어 있어야 하고, ' +
+    'capabilities는 그 기기/앱에 맞게 채워야 합니다.\n' +
     '```ts\n' +
     "import { remote } from 'webdriverio';\n\n" +
     'const driver = await remote({\n' +
@@ -683,6 +684,8 @@ server.registerTool(
       severity: z.enum(['MINOR', 'MAJOR', 'CRITICAL']).optional(),
       priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
       status: z.enum(['OPEN', 'IN_PROGRESS', 'FIXED', 'CLOSED']).optional(),
+      roundId: z.string().nullable().optional().describe('연관된 실행 사이클(회차) ID (list_rounds로 조회, null이면 연결 해제)'),
+      cycleCaseId: z.string().nullable().optional().describe('연관된 세션 케이스 ID (list_session_cases로 조회, null이면 연결 해제)'),
     },
   },
   async ({ bugId, ...patch }) => textResult(await callApi(`/bugs/${bugId}`, { method: 'PATCH', body: JSON.stringify(patch) }))

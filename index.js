@@ -330,7 +330,11 @@ server.registerTool(
   'create_test_case',
   {
     title: '테스트 케이스 생성',
-    description: '새 테스트 케이스를 만들어 이 프로젝트에 즉시 매칭합니다.',
+    description:
+      '새 테스트 케이스를 만들어 이 프로젝트에 즉시 매칭합니다. category를 지정하면 저장소 폴더 트리에서 ' +
+      '이 프로젝트 폴더 아래 그 이름의 하위 폴더에 정리되어 담깁니다 — 관련 케이스를 여러 개 만들 때는 ' +
+      '같은 category 이름을 재사용해 한 폴더에 모으세요(예: "로그인", "결제", "검색"). 생략하면 프로젝트 ' +
+      '폴더에 바로 담깁니다(하위 폴더 없음).',
     inputSchema: {
       title: z.string().describe('테스트 케이스 제목'),
       purpose: z.string().describe('테스트 목적'),
@@ -342,6 +346,10 @@ server.registerTool(
         .array(z.object({ action: z.string(), expected: z.string() }))
         .optional()
         .describe('테스트 스텝 목록'),
+      category: z
+        .string()
+        .optional()
+        .describe('저장소에서 이 케이스를 담을 하위 폴더 이름 (예: "로그인"). 같은 이름을 재사용하면 같은 폴더에 모입니다. 생략하면 프로젝트 폴더에 바로 담깁니다.'),
     },
   },
   async (args) => textResult(await callApi('/test-cases', { method: 'POST', body: JSON.stringify(args) }))

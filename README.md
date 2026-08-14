@@ -48,7 +48,7 @@ npm install
 | `create_requirement` | 새 요구사항 등록 |
 | `update_requirement` | 기존 요구사항 내용 수정 (ID는 유지) |
 | `list_test_cases` | 프로젝트에 매칭된 테스트 케이스 목록 / `q`(키워드), `priority`, `automationScriptKind`, `hasAutomation`으로 검색·필터링 |
-| `create_test_case` | 새 테스트 케이스 생성 + 프로젝트 매칭 |
+| `create_test_case` | 새 테스트 케이스 생성 + 프로젝트 매칭. `category`를 지정하면 저장소 폴더 트리에서 프로젝트 폴더 아래 그 이름의 하위 폴더에 담김(같은 이름 재사용 시 같은 폴더로 모임) — 생략하면 프로젝트 폴더에 바로 담김 |
 | `get_test_case` | 테스트 케이스 하나의 전체 상세 조회 (첨부된 자동화 스크립트 원문 포함) |
 | `update_test_case` | 테스트 케이스의 제목/목적/사전조건/입력값/기대결과/우선순위/스텝 수정 (전달한 필드만 변경) |
 | `get_automation_script_guide` | 스크립트 작성 전 참고할 가이드 — kind별(NODE_TS/JMETER/POSTMAN) 작성 규칙 + 실제 동작하는 예시 스크립트 |

@@ -63,7 +63,7 @@ const server = new McpServer({ name: 'otestmanager', version: '1.0.0' });
 const SCRIPT_GUIDES = {
   OVERVIEW:
     '자동화 스크립트는 파일명 확장자로 종류가 자동 판별됩니다 (attach_automation_script 호출 시 별도 kind 지정 불필요):\n' +
-    '- .ts → NODE_TS: 순수 Node.js, Playwright(브라우저), Appium(모바일, webdriverio) 스크립트 모두 이 확장자.\n' +
+    '- .ts → NODE_TS: 순수 Node.js, Playwright(브라우저), Appium(모바일, webdriverio), OWASP ZAP(보안 스캔) 스크립트 모두 이 확장자.\n' +
     '- .jmx → JMETER: JMeter 부하테스트 (JMeter GUI/CLI로 만든 테스트 플랜 XML).\n' +
     '- .json → POSTMAN: Postman 컬렉션 export (v2.1 권장).\n\n' +
     '세 종류 모두 run_case_automation으로 실제 러너에서 실행하고, get_automation_run_status로 ' +
@@ -133,6 +133,42 @@ const SCRIPT_GUIDES = {
     '  process.exitCode = 1;\n' +
     '} finally {\n' +
     '  await driver.deleteSession();\n' +
+    '}\n' +
+    '```\n\n' +
+    '### OWASP ZAP (보안 baseline 스캔)\n' +
+    'ZAP 데몬은 러너의 ZAP CLI(`zap.sh`/`zap.bat`)가 설치되어 있으면 러너가 자동으로 함께 띄웁니다(기본 ' +
+    '포트 8090) — 별도 클라이언트 라이브러리 없이 순수 fetch로 REST API를 호출합니다. baseline 스캔(spider ' +
+    '+ passive scan)만 다루며, 대상 서버에 부하를 주는 active scan은 포함하지 않습니다. **반드시 테스트 ' +
+    '권한이 있는 대상만 스캔하세요** — 대상 URL은 케이스의 사전조건/입력값 등에 명시하고, 임의로 다른 ' +
+    '서버를 스캔하지 마세요.\n' +
+    '```ts\n' +
+    "const ZAP_BASE = `http://localhost:${process.env.OTM_ZAP_PORT || 8090}`;\n" +
+    "const TARGET = 'https://example.com'; // 반드시 허가된 대상만\n\n" +
+    'async function zap(path: string) {\n' +
+    '  const res = await fetch(`${ZAP_BASE}${path}`);\n' +
+    '  if (!res.ok) throw new Error(`ZAP API 오류: ${path} -> ${res.status}`);\n' +
+    '  return res.json();\n' +
+    '}\n\n' +
+    "const { scan: scanId } = await zap(`/JSON/spider/action/scan/?url=${encodeURIComponent(TARGET)}`);\n" +
+    'while (true) {\n' +
+    '  const { status } = await zap(`/JSON/spider/view/status/?scanId=${scanId}`);\n' +
+    '  if (Number(status) >= 100) break;\n' +
+    '  await new Promise((r) => setTimeout(r, 2000));\n' +
+    '}\n\n' +
+    'while (true) {\n' +
+    "  const { recordsToScan } = await zap('/JSON/pscan/view/recordsToScan/');\n" +
+    '  if (Number(recordsToScan) === 0) break;\n' +
+    '  await new Promise((r) => setTimeout(r, 2000));\n' +
+    '}\n\n' +
+    "const { alerts } = await zap(`/JSON/core/view/alerts/?baseurl=${encodeURIComponent(TARGET)}`);\n" +
+    "const risky = alerts.filter((a: any) => a.risk === 'High' || a.risk === 'Medium');\n" +
+    'console.log(`ZAP baseline: 알림 ${alerts.length}건 (High/Medium ${risky.length}건)`);\n' +
+    'for (const a of alerts) console.log(`- [${a.risk}] ${a.alert}: ${a.url}`);\n\n' +
+    'if (risky.length > 0) {\n' +
+    "  console.error('FAIL: High/Medium 위험도 알림이 발견되었습니다.');\n" +
+    '  process.exitCode = 1;\n' +
+    '} else {\n' +
+    "  console.log('PASS: High/Medium 위험도 알림이 없습니다.');\n" +
     '}\n' +
     '```',
 
@@ -705,7 +741,7 @@ server.registerTool(
     title: '연결된 러너 조회',
     description:
       '이 프로젝트에 배정된 러너(자동화 실행 에이전트)와 온라인 여부, 실행 가능한 스크립트 종류 ' +
-      '(capabilities: NODE_TS/JMETER/POSTMAN/APPIUM)를 조회합니다. run_case_automation 호출 전 ' +
+      '(capabilities: NODE_TS/JMETER/POSTMAN/APPIUM/OWASP_ZAP)를 조회합니다. run_case_automation 호출 전 ' +
       '실행 가능한 러너가 있는지 미리 확인할 때 씁니다.',
     inputSchema: {},
   },

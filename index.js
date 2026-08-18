@@ -320,7 +320,7 @@ server.registerTool(
   'create_requirement',
   {
     title: '요구사항 생성',
-    description: '이 프로젝트에 새 요구사항을 등록합니다. ID는 자동으로 채번됩니다.',
+    description: '이 프로젝트에 새 요구사항을 등록합니다. ID는 프로젝트 코드 접두사 + 5자리 번호로 자동 채번됩니다(예: "ABC-REQ-00001").',
     inputSchema: {
       text: z.string().describe('요구사항 내용'),
     },
@@ -332,7 +332,7 @@ server.registerTool(
   'update_requirement',
   {
     title: '요구사항 내용 수정',
-    description: '기존 요구사항의 내용을 수정합니다. ID(code)는 바뀌지 않습니다.',
+    description: '기존 요구사항의 내용을 수정합니다. ID(code)는 바뀌지 않으며, 내용이 실제로 바뀌면 수정 전 내용이 이전 버전 이력으로 자동 보존됩니다.',
     inputSchema: {
       requirementId: z.string().describe('list_requirements로 조회한 요구사항 ID'),
       text: z.string().describe('새 요구사항 내용'),
@@ -347,7 +347,7 @@ server.registerTool(
   {
     title: '테스트 케이스 목록 조회 / 검색',
     description:
-      '이 API 키에 연결된 프로젝트에 매칭된 테스트 케이스 목록을 가져옵니다. 각 케이스의 ' +
+      '이 API 키에 연결된 프로젝트의 테스트 케이스 목록을 가져옵니다. 각 케이스의 ' +
       'automationFileName/automationScript/automationScriptKind로 이미 자동화 스크립트가 첨부되어 ' +
       '있는지, 어떤 종류(NODE_TS/JMETER/POSTMAN)인지 확인할 수 있습니다. 필터를 하나도 넘기지 않으면 ' +
       '전체 목록을 반환합니다.',
@@ -367,10 +367,11 @@ server.registerTool(
   {
     title: '테스트 케이스 생성',
     description:
-      '새 테스트 케이스를 만들어 이 프로젝트에 즉시 매칭합니다. category를 지정하면 저장소 폴더 트리에서 ' +
-      '이 프로젝트 폴더 아래 그 이름의 하위 폴더에 정리되어 담깁니다 — 관련 케이스를 여러 개 만들 때는 ' +
-      '같은 category 이름을 재사용해 한 폴더에 모으세요(예: "로그인", "결제", "검색"). 생략하면 프로젝트 ' +
-      '폴더에 바로 담깁니다(하위 폴더 없음).',
+      '새 테스트 케이스를 이 프로젝트에 만듭니다. category를 지정하면 이 프로젝트의 테스트 케이스 폴더 ' +
+      '트리에서 그 이름의 하위 폴더에 정리되어 담깁니다(폴더가 없으면 자동 생성) — 관련 케이스를 여러 개 ' +
+      '만들 때는 같은 category 이름을 재사용해 한 폴더에 모으세요(예: "로그인", "결제", "검색"). 생략하면 ' +
+      '프로젝트의 최상위(폴더 없음)에 바로 담깁니다. 케이스 ID는 프로젝트 코드 접두사 + 5자리 번호로 ' +
+      '자동 채번됩니다(예: "ABC-TC-00001").',
     inputSchema: {
       title: z.string().describe('테스트 케이스 제목'),
       purpose: z.string().describe('테스트 목적'),
@@ -385,7 +386,7 @@ server.registerTool(
       category: z
         .string()
         .optional()
-        .describe('저장소에서 이 케이스를 담을 하위 폴더 이름 (예: "로그인"). 같은 이름을 재사용하면 같은 폴더에 모입니다. 생략하면 프로젝트 폴더에 바로 담깁니다.'),
+        .describe('이 프로젝트의 폴더 트리에서 이 케이스를 담을 하위 폴더 이름 (예: "로그인"). 같은 이름을 재사용하면 같은 폴더에 모입니다. 생략하면 최상위에 바로 담깁니다.'),
     },
   },
   async (args) => textResult(await callApi('/test-cases', { method: 'POST', body: JSON.stringify(args) }))
@@ -395,9 +396,9 @@ server.registerTool(
   'get_test_case',
   {
     title: '테스트 케이스 상세 조회',
-    description: '프로젝트에 매칭된 테스트 케이스 하나의 전체 상세(스텝, 첨부된 자동화 스크립트 원문 포함)를 가져옵니다.',
+    description: '프로젝트의 테스트 케이스 하나의 전체 상세(스텝, 첨부된 자동화 스크립트 원문 포함)를 가져옵니다.',
     inputSchema: {
-      caseId: z.string().describe('list_test_cases로 조회한 프로젝트 매칭 케이스 ID'),
+      caseId: z.string().describe('list_test_cases로 조회한 테스트 케이스 ID'),
     },
   },
   async ({ caseId }) => textResult(await callApi(`/test-cases/${caseId}`))
@@ -411,7 +412,7 @@ server.registerTool(
       '테스트 케이스의 제목/목적/사전조건/입력값/기대결과/우선순위/스텝을 수정합니다. 전달한 필드만 ' +
       '바뀌고 나머지는 그대로 유지됩니다. 자동화 스크립트는 attach_automation_script로 별도 관리합니다.',
     inputSchema: {
-      caseId: z.string().describe('list_test_cases로 조회한 프로젝트 매칭 케이스 ID'),
+      caseId: z.string().describe('list_test_cases로 조회한 테스트 케이스 ID'),
       title: z.string().optional(),
       purpose: z.string().optional(),
       precondition: z.string().nullable().optional(),
@@ -429,11 +430,11 @@ server.registerTool(
   {
     title: '테스트 케이스에 자동화 스크립트 첨부',
     description:
-      '이 프로젝트에 매칭된 테스트 케이스에 자동화 스크립트를 첨부하거나 교체합니다. ' +
+      '이 프로젝트의 테스트 케이스에 자동화 스크립트를 첨부하거나 교체합니다. ' +
       '파일명 확장자로 종류가 자동 판별되며, 셋 다 실행 탭에서 러너로 바로 자동 실행할 수 있습니다: ' +
       '.ts(Node.js/Playwright/Appium), .jmx(JMeter 부하테스트), .json(Postman 컬렉션 export).',
     inputSchema: {
-      caseId: z.string().describe('list_test_cases로 조회한 프로젝트 매칭 케이스 ID'),
+      caseId: z.string().describe('list_test_cases로 조회한 테스트 케이스 ID'),
       fileName: z.string().describe('스크립트 파일명 (.ts, .jmx, .json 중 하나로 끝나야 함)'),
       content: z.string().describe('스크립트 전체 내용'),
     },
@@ -448,7 +449,7 @@ server.registerTool(
     title: '테스트 케이스의 자동화 스크립트 제거',
     description: '테스트 케이스에 첨부된 자동화 스크립트를 제거합니다.',
     inputSchema: {
-      caseId: z.string().describe('list_test_cases로 조회한 프로젝트 매칭 케이스 ID'),
+      caseId: z.string().describe('list_test_cases로 조회한 테스트 케이스 ID'),
     },
   },
   async ({ caseId }) => textResult(await callApi(`/test-cases/${caseId}/script`, { method: 'DELETE' }))
@@ -468,7 +469,7 @@ server.registerTool(
   'create_session',
   {
     title: '세션(실행 사이클) 생성',
-    description: '이 프로젝트에 새 세션을 만듭니다. 현재 프로젝트에 매칭된 모든 테스트 케이스가 자동으로 포함되고, 기본 "실행" 회차가 함께 생성됩니다.',
+    description: '이 프로젝트에 새 세션을 만듭니다. 현재 프로젝트의 모든 테스트 케이스가 자동으로 포함되고, 기본 "실행" 회차가 함께 생성됩니다.',
     inputSchema: {
       name: z.string().describe('세션 이름'),
     },
@@ -491,12 +492,12 @@ server.registerTool(
   {
     title: '세션에 케이스 추가',
     description:
-      'create_session은 호출 시점에 매칭되어 있던 케이스만 세션에 포함시킵니다 — 이미 존재하는 ' +
-      '세션에 새로 만들거나 나중에 매칭된 케이스를 추가하려면 이 도구를 쓰세요. 이미 포함되어 ' +
+      'create_session은 호출 시점에 존재하던 케이스만 세션에 포함시킵니다 — 이미 존재하는 ' +
+      '세션에 나중에 만든 케이스를 추가하려면 이 도구를 쓰세요. 이미 포함되어 ' +
       '있으면 아무것도 하지 않고 기존 항목을 그대로 반환합니다(alreadyInSession: true).',
     inputSchema: {
       sessionId: z.string(),
-      caseId: z.string().describe('list_test_cases로 조회한 프로젝트 매칭 케이스 ID'),
+      caseId: z.string().describe('list_test_cases로 조회한 테스트 케이스 ID'),
     },
   },
   async ({ sessionId, caseId }) =>
@@ -552,7 +553,7 @@ server.registerTool(
     title: '실행 회차 결과 조회',
     description:
       '특정 실행 회차의 케이스별 결과(Pass/Fail/Blocked/N/A/Not run)를 가져옵니다. 각 결과의 ' +
-      'cycleCase.projectTestCase.automationFileName이 있으면(null이 아니면) 자동화 스크립트가 첨부된 ' +
+      'cycleCase.testCase.automationFileName이 있으면(null이 아니면) 자동화 스크립트가 첨부된 ' +
       '케이스이고, run_case_automation으로 그 결과(resultId)를 자동 실행할 수 있습니다.',
     inputSchema: { sessionId: z.string(), roundId: z.string() },
   },
@@ -597,7 +598,7 @@ server.registerTool(
   {
     title: '자동화 스크립트 이전 버전 조회',
     description: '이 케이스의 자동화 스크립트가 첨부/교체/삭제될 때마다 남는 이전 버전 이력을 조회합니다.',
-    inputSchema: { caseId: z.string().describe('list_test_cases로 조회한 프로젝트 매칭 케이스 ID') },
+    inputSchema: { caseId: z.string().describe('list_test_cases로 조회한 테스트 케이스 ID') },
   },
   async ({ caseId }) => textResult(await callApi(`/test-cases/${caseId}/script/versions`))
 );

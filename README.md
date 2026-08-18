@@ -52,7 +52,7 @@ npm install
 | `get_test_case` | 테스트 케이스 하나의 전체 상세 조회 (첨부된 자동화 스크립트 원문 포함) |
 | `update_test_case` | 테스트 케이스의 제목/목적/사전조건/입력값/기대결과/우선순위/스텝 수정 (전달한 필드만 변경) |
 | `get_automation_script_guide` | 스크립트 작성 전 참고할 가이드 — kind별(NODE_TS/JMETER/POSTMAN) 작성 규칙 + 실제 동작하는 예시 스크립트 |
-| `attach_automation_script` | 테스트 케이스에 자동화 스크립트 첨부/교체(=수정) — 파일 확장자로 종류 자동 판별 (.ts: Node.js/Playwright/Appium/OWASP ZAP, .jmx: JMeter, .json: Postman/Newman, 전부 러너에서 실행 가능). 이전 스크립트는 버전 이력으로 보관 |
+| `attach_automation_script` | 테스트 케이스에 자동화 스크립트 첨부/교체(=수정) — 파일 확장자로 종류 자동 판별 (.ts: Node.js/Playwright/Appium/OWASP ZAP, .jmx: JMeter, .json: Postman/Newman, 전부 러너에서 실행 가능). 실제 저장 파일명은 전달한 fileName을 그대로 쓰지 않고 케이스 ID·제목 기반으로 서버가 재생성함(fileName은 확장자 판별 용도). content 맨 앞에 실제 엔진(Playwright/Appium/OWASP ZAP/Node.js/JMeter/Postman)을 표시하는 주석(.ts/.jmx) 또는 info.description(.json)을 반드시 포함해야 함. 이전 스크립트는 버전 이력으로 보관 |
 | `remove_automation_script` | 테스트 케이스의 자동화 스크립트 제거 (마찬가지로 버전 이력에 보관) |
 | `list_automation_script_versions` | 자동화 스크립트 이전 버전 이력 조회 |
 | `list_sessions` | 세션(실행 사이클) 목록 |

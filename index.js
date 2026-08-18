@@ -66,6 +66,10 @@ const SCRIPT_GUIDES = {
     '- .ts → NODE_TS: 순수 Node.js, Playwright(브라우저), Appium(모바일, webdriverio), OWASP ZAP(보안 스캔) 스크립트 모두 이 확장자.\n' +
     '- .jmx → JMETER: JMeter 부하테스트 (JMeter GUI/CLI로 만든 테스트 플랜 XML).\n' +
     '- .json → POSTMAN: Postman 컬렉션 export (v2.1 권장).\n\n' +
+    '**모든 스크립트는 맨 위에 실제 사용하는 자동화 엔진(Playwright / Appium / OWASP ZAP / 순수 Node.js / ' +
+    'JMeter / Postman)을 명시하는 표시를 남겨야 합니다** — 특히 .ts는 확장자만으로는 Playwright인지 ' +
+    'Appium인지 ZAP인지 순수 Node.js인지 구분이 안 되므로 필수입니다. 형식은 종류별 가이드 참고 ' +
+    '(get_automation_script_guide({ kind })).\n\n' +
     '세 종류 모두 run_case_automation으로 실제 러너에서 실행하고, get_automation_run_status로 ' +
     '결과(Pass/Fail, 로그, 아티팩트)를 가져올 수 있습니다. 종류별 상세 작성 규칙과 예시는 ' +
     'get_automation_script_guide({ kind })로 조회하세요 — kind는 "NODE_TS", "JMETER", "POSTMAN" 중 하나입니다.',
@@ -75,8 +79,11 @@ const SCRIPT_GUIDES = {
     '러너가 tsx로 직접 실행합니다. 종료 코드 0 = PASS, 그 외 = FAIL. console.log/console.error 출력이 ' +
     '그대로 실행 로그에 남고, 스크립트가 실행 디렉터리에 남긴 파일(스크린샷 등)은 파일명과 무관하게 ' +
     '전부 자동으로 아티팩트 첨부됩니다.\n\n' +
+    '**.ts는 확장자만으로 엔진을 구분할 수 없으므로, 스크립트 맨 첫 줄에 반드시 `// Engine: ' +
+    '<Playwright|Appium|OWASP ZAP|Node.js>` 형식의 주석을 남기세요.** 아래 각 예시 참고.\n\n' +
     '### 순수 Node.js (HTTP 레벨 검증)\n' +
     '```ts\n' +
+    "// Engine: Node.js\n" +
     "const res = await fetch('https://example.com');\n" +
     "if (!res.ok) throw new Error(`응답 오류: ${res.status}`);\n" +
     "console.log('PASS: 사이트가 정상 응답합니다.');\n" +
@@ -85,6 +92,7 @@ const SCRIPT_GUIDES = {
     "기본은 headless입니다. 사람이 실행 탭에서 '브라우저 표시'를 켠 실행에 한해 환경변수 " +
     'OTM_HEADLESS=false가 전달되니, 스크립트가 이 값을 읽어 반영해야 합니다.\n' +
     '```ts\n' +
+    "// Engine: Playwright\n" +
     "import { chromium } from 'playwright';\n\n" +
     "const headless = process.env.OTM_HEADLESS !== 'false';\n" +
     'const browser = await chromium.launch({ headless });\n' +
@@ -109,6 +117,7 @@ const SCRIPT_GUIDES = {
     '연결할 실제 기기/에뮬레이터는 러너가 대신 준비해주지 않습니다 — 미리 연결되어 있어야 하고, ' +
     'capabilities는 그 기기/앱에 맞게 채워야 합니다.\n' +
     '```ts\n' +
+    "// Engine: Appium\n" +
     "import { remote } from 'webdriverio';\n\n" +
     'const driver = await remote({\n' +
     "  hostname: 'localhost',\n" +
@@ -142,6 +151,7 @@ const SCRIPT_GUIDES = {
     '권한이 있는 대상만 스캔하세요** — 대상 URL은 케이스의 사전조건/입력값 등에 명시하고, 임의로 다른 ' +
     '서버를 스캔하지 마세요.\n' +
     '```ts\n' +
+    "// Engine: OWASP ZAP\n" +
     "const ZAP_BASE = `http://localhost:${process.env.OTM_ZAP_PORT || 8090}`;\n" +
     "const TARGET = 'https://example.com'; // 반드시 허가된 대상만\n\n" +
     'async function zap(path: string) {\n' +
@@ -181,9 +191,10 @@ const SCRIPT_GUIDES = {
     '요청이 뭘 반환하든 항상 PASS로 기록됨).\n\n' +
     '.jmx는 JMeter GUI에서 저장한 XML 파일을 그대로 첨부하면 됩니다 — 순수 텍스트를 손으로 작성하기보다는, ' +
     'JMeter 표준 테스트 플랜 XML 스키마(TestPlan → ThreadGroup → HTTPSamplerProxy → ResponseAssertion 등)를 ' +
-    '따라 생성하세요. 최소 예시 구조:\n' +
+    '따라 생성하세요. **XML 선언 바로 다음 줄에 `<!-- Engine: JMeter -->` 주석을 남기세요.** 최소 예시 구조:\n' +
     '```xml\n' +
     '<?xml version="1.0" encoding="UTF-8"?>\n' +
+    '<!-- Engine: JMeter -->\n' +
     '<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3"><hashTree>\n' +
     '  <TestPlan testname="Test Plan"><boolProp name="TestPlan.functional_mode">false</boolProp></TestPlan>\n' +
     '  <hashTree>\n' +
@@ -223,9 +234,11 @@ const SCRIPT_GUIDES = {
     '판정됩니다. **컬렉션의 각 요청에 Tests 스크립트(event.listen="test")로 검증 로직이 있어야 의미 있게 ' +
     'Pass/Fail이 갈립니다** — 요청만 있고 테스트 스크립트가 없으면 응답 내용과 무관하게 항상 PASS로 ' +
     '기록됩니다.\n\n' +
+    '**JSON은 주석을 지원하지 않으므로, `info.description`을 `"Engine: Postman"`으로 시작하는 문자열로 ' +
+    '채워 엔진을 표시하세요.**\n\n' +
     '```json\n' +
     '{\n' +
-    '  "info": { "name": "예시 컬렉션", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },\n' +
+    '  "info": { "name": "예시 컬렉션", "description": "Engine: Postman", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },\n' +
     '  "item": [\n' +
     '    {\n' +
     '      "name": "GET 요청",\n' +
@@ -432,11 +445,15 @@ server.registerTool(
     description:
       '이 프로젝트의 테스트 케이스에 자동화 스크립트를 첨부하거나 교체합니다. ' +
       '파일명 확장자로 종류가 자동 판별되며, 셋 다 실행 탭에서 러너로 바로 자동 실행할 수 있습니다: ' +
-      '.ts(Node.js/Playwright/Appium), .jmx(JMeter 부하테스트), .json(Postman 컬렉션 export).',
+      '.ts(Node.js/Playwright/Appium), .jmx(JMeter 부하테스트), .json(Postman 컬렉션 export). ' +
+      '실제 저장되는 파일명은 fileName으로 전달한 이름을 그대로 쓰지 않고, 케이스 ID와 제목 기반으로 ' +
+      '서버가 자동 생성합니다(예: STA-TC-00012_로그인_실패_처리.ts) — fileName은 확장자로 종류를 판별하는 용도입니다. ' +
+      'content 맨 앞에는 실제 사용하는 엔진(Playwright/Appium/OWASP ZAP/Node.js/JMeter/Postman)을 표시하는 ' +
+      '주석(.ts/.jmx) 또는 info.description(.json)을 반드시 넣으세요 — 형식은 get_automation_script_guide 참고.',
     inputSchema: {
       caseId: z.string().describe('list_test_cases로 조회한 테스트 케이스 ID'),
-      fileName: z.string().describe('스크립트 파일명 (.ts, .jmx, .json 중 하나로 끝나야 함)'),
-      content: z.string().describe('스크립트 전체 내용'),
+      fileName: z.string().describe('스크립트 파일명 (.ts, .jmx, .json 중 하나로 끝나야 함 — 확장자만 사용되고 실제 저장 파일명은 케이스 ID·제목 기반으로 서버가 재생성함)'),
+      content: z.string().describe('스크립트 전체 내용 — 맨 앞에 실제 엔진(Playwright/Appium/OWASP ZAP/Node.js/JMeter/Postman)을 표시하는 주석 또는 info.description을 포함해야 함'),
     },
   },
   async ({ caseId, fileName, content }) =>

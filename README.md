@@ -60,7 +60,7 @@ npm install
 | `list_session_cases` | 세션에 포함된 케이스 목록 |
 | `add_case_to_session` | 이미 존재하는 세션에 케이스 추가 (create_session은 호출 시점에 존재하던 케이스만 포함하므로, 나중에 만든 케이스는 이걸로 추가) |
 | `get_case_requirements` | 세션 케이스가 현재 검증하는 요구사항 목록 조회 |
-| `update_case_requirements` | 세션 케이스가 검증하는 요구사항 지정 (요구사항 커버리지, 호출마다 전체 교체) |
+| `update_case_requirements` | 테스트 케이스가 검증하는 요구사항 지정 (프로젝트 레벨 요구사항 커버리지, 호출마다 전체 교체) |
 | `list_rounds` | 세션의 실행 회차 목록 |
 | `get_round_results` | 실행 회차의 케이스별 결과 전체 목록 |
 | `get_round_test_case_result` | 실행 회차의 결과 하나만 조회 (resultId를 이미 알고 있을 때, 전체 목록 재조회 없이) |

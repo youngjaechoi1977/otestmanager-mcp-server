@@ -537,17 +537,18 @@ server.registerTool(
 server.registerTool(
   'update_case_requirements',
   {
-    title: '세션 케이스의 요구사항 커버리지 설정',
-    description: '세션 내 특정 테스트 케이스가 검증하는 요구사항을 지정합니다. 호출할 때마다 전체 목록을 교체합니다(누적 아님).',
+    title: '테스트 케이스의 요구사항 커버리지 설정',
+    description:
+      '이 프로젝트의 테스트 케이스가 검증하는 요구사항을 지정합니다(프로젝트 레벨 매칭 — 특정 세션에 국한되지 않고 ' +
+      '이 케이스가 포함된 모든 세션에 공통 적용). 호출할 때마다 전체 목록을 교체합니다(누적 아님).',
     inputSchema: {
-      sessionId: z.string(),
-      cycleCaseId: z.string().describe('list_session_cases로 조회한 세션 케이스 ID'),
+      caseId: z.string().describe('list_test_cases로 조회한 테스트 케이스 ID'),
       requirementIds: z.array(z.string()).describe('list_requirements로 조회한 요구사항 ID 목록'),
     },
   },
-  async ({ sessionId, cycleCaseId, requirementIds }) =>
+  async ({ caseId, requirementIds }) =>
     textResult(
-      await callApi(`/sessions/${sessionId}/cases/${cycleCaseId}`, {
+      await callApi(`/test-cases/${caseId}/requirements`, {
         method: 'PATCH',
         body: JSON.stringify({ requirementIds }),
       })

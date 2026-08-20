@@ -333,9 +333,17 @@ server.registerTool(
   'create_requirement',
   {
     title: '요구사항 생성',
-    description: '이 프로젝트에 새 요구사항을 등록합니다. ID는 프로젝트 코드 접두사 + 5자리 번호로 자동 채번됩니다(예: "ABC-REQ-00001").',
+    description:
+      '이 프로젝트에 새 요구사항을 등록합니다. ID는 프로젝트 코드 접두사 + 5자리 번호로 자동 채번됩니다(예: ' +
+      '"ABC-REQ-00001"). category를 지정하면 이 프로젝트의 요구사항 폴더 트리에서 그 이름의 하위 폴더에 ' +
+      '정리되어 담깁니다(폴더가 없으면 자동 생성) — 관련 요구사항을 여러 개 만들 때는 같은 category 이름을 ' +
+      '재사용해 한 폴더에 모으세요. 생략하면 프로젝트의 최상위(폴더 없음)에 바로 담깁니다.',
     inputSchema: {
       text: z.string().describe('요구사항 내용'),
+      category: z
+        .string()
+        .optional()
+        .describe('이 프로젝트의 요구사항 폴더 트리에서 이 요구사항을 담을 하위 폴더 이름. 같은 이름을 재사용하면 같은 폴더에 모입니다. 생략하면 최상위에 바로 담깁니다.'),
     },
   },
   async (args) => textResult(await callApi('/requirements', { method: 'POST', body: JSON.stringify(args) }))

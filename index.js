@@ -391,8 +391,9 @@ server.registerTool(
       '새 테스트 케이스를 이 프로젝트에 만듭니다. category를 지정하면 이 프로젝트의 테스트 케이스 폴더 ' +
       '트리에서 그 이름의 하위 폴더에 정리되어 담깁니다(폴더가 없으면 자동 생성) — 관련 케이스를 여러 개 ' +
       '만들 때는 같은 category 이름을 재사용해 한 폴더에 모으세요(예: "로그인", "결제", "검색"). 생략하면 ' +
-      '프로젝트의 최상위(폴더 없음)에 바로 담깁니다. 케이스 ID는 프로젝트 코드 접두사 + 5자리 번호로 ' +
-      '자동 채번됩니다(예: "ABC-TC-00001").',
+      '프로젝트의 최상위(폴더 없음)에 바로 담깁니다. requirementIds를 지정하면 생성과 동시에 해당 ' +
+      '요구사항(들)을 검증하는 케이스로 매칭됩니다(나중에 update_case_requirements로 바꿀 수도 있음). ' +
+      '케이스 ID는 프로젝트 코드 접두사 + 5자리 번호로 자동 채번됩니다(예: "ABC-TC-00001").',
     inputSchema: {
       title: z.string().describe('테스트 케이스 제목'),
       purpose: z.string().describe('테스트 목적'),
@@ -408,6 +409,10 @@ server.registerTool(
         .string()
         .optional()
         .describe('이 프로젝트의 폴더 트리에서 이 케이스를 담을 하위 폴더 이름 (예: "로그인"). 같은 이름을 재사용하면 같은 폴더에 모입니다. 생략하면 최상위에 바로 담깁니다.'),
+      requirementIds: z
+        .array(z.string())
+        .optional()
+        .describe('list_requirements로 조회한, 이 케이스가 검증하는 요구사항 ID 목록 (프로젝트 레벨 매칭, 특정 세션에 국한되지 않음). 생략하면 매칭 없이 생성됩니다.'),
     },
   },
   async (args) => textResult(await callApi('/test-cases', { method: 'POST', body: JSON.stringify(args) }))

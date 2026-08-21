@@ -604,7 +604,9 @@ server.registerTool(
   {
     title: '실행 회차 결과 조회',
     description:
-      '특정 실행 회차의 케이스별 결과(Pass/Fail/Blocked/N/A/Not run)를 가져옵니다. 각 결과의 ' +
+      '특정 실행 회차의 케이스별 결과(Pass/Fail/Blocked/N/A/Not run)를 가져옵니다. isAutomated가 ' +
+      'true인 결과는 automationRun.id가 함께 오므로, 그 결과가 왜 그렇게 나왔는지 진단하려면 ' +
+      'get_automation_run_status에 그 id를 그대로 넘기세요(다시 조회할 필요 없음). 각 결과의 ' +
       'cycleCase.testCase.automationFileName이 있으면(null이 아니면) 자동화 스크립트가 첨부된 ' +
       '케이스이고, run_case_automation으로 그 결과(resultId)를 자동 실행할 수 있습니다.',
     inputSchema: { sessionId: z.string(), roundId: z.string() },
@@ -724,7 +726,10 @@ server.registerTool(
   'create_bug',
   {
     title: '결함 등록',
-    description: '이 프로젝트에 새 결함을 등록합니다.',
+    description:
+      '이 프로젝트에 새 결함을 등록합니다. 등록 전 list_bugs로 이미 같은 결함(같은 대상/증상)이 ' +
+      '등록되어 있는지 확인하는 게 좋습니다 - 이미 있다면 새로 만들지 말고 link_bug_to_result로 ' +
+      '이번 실행을 그 기존 결함에 연결하세요(중복 결함 생성 방지).',
     inputSchema: {
       title: z.string(),
       description: z.string().optional(),
@@ -803,6 +808,25 @@ server.registerTool(
     },
   },
   async ({ bugId, ...patch }) => textResult(await callApi(`/bugs/${bugId}`, { method: 'PATCH', body: JSON.stringify(patch) }))
+);
+
+server.registerTool(
+  'link_bug_to_result',
+  {
+    title: '기존 결함을 다른 테스트 실행에 연결',
+    description:
+      '이미 등록된 결함이 다른 세션/회차의 테스트 실행에서도 재현(중복 발견)되었을 때, 원래 결함의 ' +
+      '발견 위치(cycleCaseId/roundId)는 그대로 둔 채 이번에 발견된 세션/회차도 함께 기록합니다. 결함이 ' +
+      '이미 있는데 완전히 새로운 결함(create_bug)을 또 만들 필요 없이, 같은 결함이 여러 실행에서 ' +
+      '반복 발견됐다는 사실만 남길 때 쓰세요. 같은 조합으로 두 번 호출해도 안전합니다(중복 기록 안 됨).',
+    inputSchema: {
+      bugId: z.string().describe('list_bugs/create_bug로 조회한, 이미 등록된 결함 ID'),
+      cycleCaseId: z.string().describe('이번에 다시 발견된 세션 케이스 ID (run_case_automation/get_automation_run_status 응답의 cycleCaseId)'),
+      roundId: z.string().describe('이번에 다시 발견된 실행 회차 ID (run_case_automation/get_automation_run_status 응답의 roundId)'),
+    },
+  },
+  async ({ bugId, cycleCaseId, roundId }) =>
+    textResult(await callApi(`/bugs/${bugId}/occurrences`, { method: 'POST', body: JSON.stringify({ cycleCaseId, roundId }) }))
 );
 
 server.registerTool(

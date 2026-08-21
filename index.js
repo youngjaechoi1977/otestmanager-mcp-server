@@ -664,7 +664,9 @@ server.registerTool(
       'record_result로 직접 결과를 기록하는 대신, 실제 러너가 스크립트를 구동한 결과(Pass/Fail)를 그대로 반영합니다. ' +
       '실행이 오래 걸려 시간 내 끝나지 않으면 status: "IN_PROGRESS"와 runId를 반환하니, ' +
       'get_automation_run_status로 다시 확인하세요. JMeter(.jmx)나 Postman/Newman(.json) 스크립트도 ' +
-      '실행 가능합니다 — 각각 샘플러/요청·어설션 성공 여부로 Pass/Fail이 판정됩니다.',
+      '실행 가능합니다 — 각각 샘플러/요청·어설션 성공 여부로 Pass/Fail이 판정됩니다. 응답에 포함된 ' +
+      'cycleCaseId/roundId는 바로 이 실행이 속한 세션의 케이스/회차이므로, FAIL을 결함으로 등록할 때 ' +
+      'create_bug에 다른 도구로 다시 찾지 말고 그대로 넘기세요.',
     inputSchema: { sessionId: z.string(), roundId: z.string(), resultId: z.string() },
   },
   async ({ sessionId, roundId, resultId }) =>
@@ -680,7 +682,9 @@ server.registerTool(
     description:
       'run_case_automation이 시간 내에 끝나지 않았을 때, runId로 최종 결과를 다시 확인합니다. ' +
       '응답의 artifacts 목록(스크린샷/영상/.jtl/리포트 등)에서 id를 얻어 get_automation_run_artifact로 ' +
-      '실제 파일 내용을 가져올 수 있습니다.',
+      '실제 파일 내용을 가져올 수 있습니다. 응답에 포함된 cycleCaseId/roundId는 이 실행이 속한 세션의 ' +
+      '케이스/회차이므로, FAIL을 결함으로 등록할 때 create_bug에 다른 도구로 다시 찾지 말고 그대로 ' +
+      '넘기세요 - list_sessions/list_rounds로 다시 뒤져서 추측하지 마세요.',
     inputSchema: { runId: z.string() },
   },
   async ({ runId }) => textResult(await callApi(`/automation-runs/${runId}`))
@@ -730,8 +734,21 @@ server.registerTool(
       reproSteps: z.string().optional(),
       severity: z.enum(['MINOR', 'MAJOR', 'CRITICAL']).optional(),
       priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
-      cycleCaseId: z.string().optional().describe('연관된 세션 케이스 ID (선택)'),
-      roundId: z.string().optional().describe('결함이 발견된 실행 사이클(회차) ID (선택, list_rounds로 조회)'),
+      cycleCaseId: z
+        .string()
+        .optional()
+        .describe(
+          '연관된 세션 케이스 ID (선택). 자동화 실행 결과로 발견된 결함이면 run_case_automation/' +
+            'get_automation_run_status 응답의 cycleCaseId를 그대로 쓰세요 - list_sessions 등으로 다시 찾지 마세요.'
+        ),
+      roundId: z
+        .string()
+        .optional()
+        .describe(
+          '결함이 발견된 실행 사이클(회차) ID (선택). 자동화 실행 결과로 발견된 결함이면 ' +
+            'run_case_automation/get_automation_run_status 응답의 roundId를 그대로 쓰세요 - 수동으로 확인한 ' +
+            '결함이면 list_rounds로 조회하세요.'
+        ),
     },
   },
   async (args) => textResult(await callApi('/bugs', { method: 'POST', body: JSON.stringify(args) }))

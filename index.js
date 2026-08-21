@@ -321,7 +321,10 @@ server.registerTool(
   'list_requirements',
   {
     title: '요구사항 목록 조회 / 검색',
-    description: '이 API 키에 연결된 프로젝트의 요구사항 목록을 가져옵니다. q를 넘기면 ID/내용에서 검색합니다.',
+    description:
+      '이 API 키에 연결된 프로젝트의 요구사항 목록을 가져옵니다. q를 넘기면 ID/내용에서 검색합니다. ' +
+      '각 요구사항은 folderId를 포함하며, list_folders(kind: REQUIREMENT)가 반환하는 폴더 트리 어디에 ' +
+      '속하는지 알 수 있습니다(null이면 폴더 없음).',
     inputSchema: {
       q: z.string().optional().describe('요구사항 ID(code) 또는 내용에 포함된 검색어 (대소문자 무시)'),
     },
@@ -366,15 +369,18 @@ server.registerTool(
 server.registerTool(
   'list_folders',
   {
-    title: '테스트 케이스 폴더 트리 조회',
+    title: '폴더 트리 조회 (테스트 케이스 또는 요구사항)',
     description:
-      '이 프로젝트의 테스트 케이스 폴더 트리를 평평한 목록으로 가져옵니다. 각 항목은 id/name/parentId를 ' +
+      '이 프로젝트의 폴더 트리를 평평한 목록으로 가져옵니다. kind로 테스트 케이스 폴더 트리(기본값) ' +
+      '또는 요구사항 폴더 트리를 선택하세요 - 두 트리는 서로 별개입니다. 각 항목은 id/name/parentId를 ' +
       '가지며, parentId가 null이면 최상위 폴더입니다 - 클라이언트가 직접 계층 구조로 조립하세요. ' +
-      'list_test_cases가 반환하는 각 케이스의 folderId와 대조하면 케이스가 어느 폴더에 속하는지 알 수 ' +
-      '있습니다(folderId가 null이면 폴더 없이 프로젝트 최상위에 바로 담긴 케이스).',
-    inputSchema: {},
+      'list_test_cases/list_requirements가 반환하는 각 항목의 folderId와 대조하면 어느 폴더에 속하는지 ' +
+      '알 수 있습니다(folderId가 null이면 폴더 없이 프로젝트 최상위에 바로 담긴 항목).',
+    inputSchema: {
+      kind: z.enum(['CASE', 'REQUIREMENT']).optional().describe('CASE(기본값)=테스트 케이스 폴더 트리, REQUIREMENT=요구사항 폴더 트리'),
+    },
   },
-  async () => textResult(await callApi('/folders?kind=CASE'))
+  async ({ kind } = {}) => textResult(await callApi(`/folders?kind=${kind === 'REQUIREMENT' ? 'REQUIREMENT' : 'CASE'}`))
 );
 
 server.registerTool(

@@ -44,10 +44,10 @@ npm install
 | `list_documents` | 프로젝트 첨부 문서 목록 |
 | `attach_document` | 프로젝트에 문서 첨부 (base64, 최대 10MB) |
 | `remove_document` | 프로젝트 첨부 문서 삭제 |
-| `list_requirements` | 프로젝트의 요구사항 목록 / `q`로 ID·내용 검색 |
+| `list_requirements` | 프로젝트의 요구사항 목록 / `q`로 ID·내용 검색. 각 요구사항은 `folderId`를 포함 |
 | `create_requirement` | 새 요구사항 등록 — `category` 지정 시 요구사항 폴더 트리의 해당 하위 폴더에 정리됨(없으면 자동 생성) |
 | `update_requirement` | 기존 요구사항 내용 수정 (ID는 유지, 내용이 바뀌면 이전 버전 이력 자동 보존) |
-| `list_folders` | 프로젝트의 테스트 케이스 폴더 트리(id/name/parentId 평평한 목록) — `list_test_cases`의 `folderId`와 대조해 계층 구조 조립 |
+| `list_folders` | 프로젝트의 폴더 트리(id/name/parentId 평평한 목록) — `kind`로 테스트 케이스(기본값) 또는 요구사항 트리 선택. `list_test_cases`/`list_requirements`의 `folderId`와 대조해 계층 구조 조립 |
 | `list_test_cases` | 프로젝트의 테스트 케이스 목록 / `q`(키워드), `priority`, `automationScriptKind`, `hasAutomation`으로 검색·필터링. 각 케이스는 `folderId`를 포함 |
 | `create_test_case` | 새 테스트 케이스를 이 프로젝트에 생성. `category`를 지정하면 이 프로젝트의 폴더 트리에서 그 이름의 하위 폴더에 담김(같은 이름 재사용 시 같은 폴더로 모임, 없으면 자동 생성) — 생략하면 최상위에 바로 담김. `requirementIds`를 지정하면 생성과 동시에 해당 요구사항(들)과 매칭됨(프로젝트 레벨). ID는 `<프로젝트코드>-TC-00001` 형식(5자리)으로 자동 채번 |
 | `get_test_case` | 테스트 케이스 하나의 전체 상세 조회 (첨부된 자동화 스크립트 원문 포함) |

@@ -364,13 +364,28 @@ server.registerTool(
 );
 
 server.registerTool(
+  'list_folders',
+  {
+    title: '테스트 케이스 폴더 트리 조회',
+    description:
+      '이 프로젝트의 테스트 케이스 폴더 트리를 평평한 목록으로 가져옵니다. 각 항목은 id/name/parentId를 ' +
+      '가지며, parentId가 null이면 최상위 폴더입니다 - 클라이언트가 직접 계층 구조로 조립하세요. ' +
+      'list_test_cases가 반환하는 각 케이스의 folderId와 대조하면 케이스가 어느 폴더에 속하는지 알 수 ' +
+      '있습니다(folderId가 null이면 폴더 없이 프로젝트 최상위에 바로 담긴 케이스).',
+    inputSchema: {},
+  },
+  async () => textResult(await callApi('/folders?kind=CASE'))
+);
+
+server.registerTool(
   'list_test_cases',
   {
     title: '테스트 케이스 목록 조회 / 검색',
     description:
       '이 API 키에 연결된 프로젝트의 테스트 케이스 목록을 가져옵니다. 각 케이스의 ' +
       'automationFileName/automationScript/automationScriptKind로 이미 자동화 스크립트가 첨부되어 ' +
-      '있는지, 어떤 종류(NODE_TS/JMETER/POSTMAN)인지 확인할 수 있습니다. 필터를 하나도 넘기지 않으면 ' +
+      '있는지, 어떤 종류(NODE_TS/JMETER/POSTMAN)인지 확인할 수 있습니다. folderId로 list_folders가 ' +
+      '반환하는 폴더 트리 어디에 속하는지 알 수 있습니다(null이면 폴더 없음). 필터를 하나도 넘기지 않으면 ' +
       '전체 목록을 반환합니다.',
     inputSchema: {
       q: z.string().optional().describe('ID/제목/목적/입력값/기대결과에 포함된 검색어 (대소문자 무시)'),

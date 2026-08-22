@@ -729,7 +729,9 @@ server.registerTool(
     description:
       '이 프로젝트에 새 결함을 등록합니다. 등록 전 list_bugs로 이미 같은 결함(같은 대상/증상)이 ' +
       '등록되어 있는지 확인하는 게 좋습니다 - 이미 있다면 새로 만들지 말고 link_bug_to_result로 ' +
-      '이번 실행을 그 기존 결함에 연결하세요(중복 결함 생성 방지).',
+      '이번 실행을 그 기존 결함에 연결하세요(중복 결함 생성 방지). 자동화 실행 결과로 발견된 ' +
+      '결함이면, 등록(또는 link_bug_to_result로 연결) 후 attach_bug_evidence로 관련 스크린샷/영상을 ' +
+      '첨부하세요.',
     inputSchema: {
       title: z.string(),
       description: z.string().optional(),
@@ -827,6 +829,33 @@ server.registerTool(
   },
   async ({ bugId, cycleCaseId, roundId }) =>
     textResult(await callApi(`/bugs/${bugId}/occurrences`, { method: 'POST', body: JSON.stringify({ cycleCaseId, roundId }) }))
+);
+
+server.registerTool(
+  'attach_bug_evidence',
+  {
+    title: '결함에 증거 자료 첨부',
+    description:
+      '결함에 증거 파일(스크린샷, 영상, 로그 등)을 첨부합니다. 여러 번 호출해서 여러 파일을 첨부할 수 ' +
+      '있습니다. 자동화 실행 결과로 발견된 결함이면, get_automation_run_status 응답의 artifacts ' +
+      '목록에서 관련 파일(스크린샷 우선, 없으면 영상)의 id를 찾아 get_automation_run_artifact로 ' +
+      '가져온 뒤 그 fileName/contentBase64/mimeType을 그대로 여기에 전달하세요. 로그처럼 텍스트인 ' +
+      '증거는 굳이 파일로 첨부하지 말고 결함의 actualResult/description에 직접 인용하는 편이 ' +
+      '낫습니다.',
+    inputSchema: {
+      bugId: z.string().describe('list_bugs/create_bug로 조회한 결함 ID'),
+      fileName: z.string().describe('파일명 (확장자 포함)'),
+      contentBase64: z.string().describe('파일 내용 (base64) - get_automation_run_artifact 응답의 contentBase64를 그대로 전달 가능'),
+      mimeType: z.string().optional().describe('예: image/png, video/webm - 생략 시 application/octet-stream'),
+    },
+  },
+  async ({ bugId, fileName, contentBase64, mimeType }) =>
+    textResult(
+      await callApi(`/bugs/${bugId}/attachments`, {
+        method: 'POST',
+        body: JSON.stringify({ fileName, contentBase64, mimeType }),
+      })
+    )
 );
 
 server.registerTool(

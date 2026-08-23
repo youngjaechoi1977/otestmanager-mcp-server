@@ -669,11 +669,25 @@ server.registerTool(
       '실행 가능합니다 — 각각 샘플러/요청·어설션 성공 여부로 Pass/Fail이 판정됩니다. 응답에 포함된 ' +
       'cycleCaseId/roundId는 바로 이 실행이 속한 세션의 케이스/회차이므로, FAIL을 결함으로 등록할 때 ' +
       'create_bug에 다른 도구로 다시 찾지 말고 그대로 넘기세요.',
-    inputSchema: { sessionId: z.string(), roundId: z.string(), resultId: z.string() },
+    inputSchema: {
+      sessionId: z.string(),
+      roundId: z.string(),
+      resultId: z.string(),
+      runnerId: z
+        .string()
+        .optional()
+        .describe(
+          'list_runners로 조회한 러너 id를 지정하면 그 러너로 강제 실행합니다(오프라인이면 실패). ' +
+            '생략하면 케이스 담당자의 러너, 그마저 없으면 온라인 러너 중 자동 선택됩니다.'
+        ),
+    },
   },
-  async ({ sessionId, roundId, resultId }) =>
+  async ({ sessionId, roundId, resultId, runnerId }) =>
     textResult(
-      await callApi(`/sessions/${sessionId}/rounds/${roundId}/results/${resultId}/run-automation`, { method: 'POST' })
+      await callApi(`/sessions/${sessionId}/rounds/${roundId}/results/${resultId}/run-automation`, {
+        method: 'POST',
+        body: JSON.stringify({ runnerId }),
+      })
     )
 );
 

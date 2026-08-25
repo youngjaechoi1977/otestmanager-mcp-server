@@ -326,10 +326,22 @@ server.registerTool(
       '각 요구사항은 folderId를 포함하며, list_folders(kind: REQUIREMENT)가 반환하는 폴더 트리 어디에 ' +
       '속하는지 알 수 있습니다(null이면 폴더 없음).',
     inputSchema: {
-      q: z.string().optional().describe('요구사항 ID(code) 또는 내용에 포함된 검색어 (대소문자 무시)'),
+      q: z.string().nullish().describe('요구사항 ID(code) 또는 내용에 포함된 검색어 (대소문자 무시)'),
     },
   },
   async ({ q } = {}) => textResult(await callApi(`/requirements${qs({ q })}`))
+);
+
+server.registerTool(
+  'get_requirement',
+  {
+    title: '요구사항 상세 조회',
+    description: '요구사항 하나의 전체 상세(버전, 이 요구사항을 검증하는 테스트 케이스 목록 포함)를 가져옵니다.',
+    inputSchema: {
+      requirementId: z.string().describe('list_requirements로 조회한 요구사항 ID'),
+    },
+  },
+  async ({ requirementId }) => textResult(await callApi(`/requirements/${requirementId}`))
 );
 
 server.registerTool(
@@ -377,7 +389,7 @@ server.registerTool(
       'list_test_cases/list_requirements가 반환하는 각 항목의 folderId와 대조하면 어느 폴더에 속하는지 ' +
       '알 수 있습니다(folderId가 null이면 폴더 없이 프로젝트 최상위에 바로 담긴 항목).',
     inputSchema: {
-      kind: z.enum(['CASE', 'REQUIREMENT']).optional().describe('CASE(기본값)=테스트 케이스 폴더 트리, REQUIREMENT=요구사항 폴더 트리'),
+      kind: z.enum(['CASE', 'REQUIREMENT']).nullish().describe('CASE(기본값)=테스트 케이스 폴더 트리, REQUIREMENT=요구사항 폴더 트리'),
     },
   },
   async ({ kind } = {}) => textResult(await callApi(`/folders?kind=${kind === 'REQUIREMENT' ? 'REQUIREMENT' : 'CASE'}`))
@@ -394,10 +406,12 @@ server.registerTool(
       '반환하는 폴더 트리 어디에 속하는지 알 수 있습니다(null이면 폴더 없음). 필터를 하나도 넘기지 않으면 ' +
       '전체 목록을 반환합니다.',
     inputSchema: {
-      q: z.string().optional().describe('ID/제목/목적/입력값/기대결과에 포함된 검색어 (대소문자 무시)'),
-      priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
-      automationScriptKind: z.enum(['NODE_TS', 'JMETER', 'POSTMAN']).optional().describe('첨부된 자동화 스크립트 종류로 필터링'),
-      hasAutomation: z.boolean().optional().describe('true면 자동화 스크립트가 첨부된 케이스만, false면 없는 케이스만'),
+      // .nullish() (not .optional()) - some models pass an explicit null for "no filter"
+      // instead of omitting the key, which .optional() alone rejects as a validation error.
+      q: z.string().nullish().describe('ID/제목/목적/입력값/기대결과에 포함된 검색어 (대소문자 무시)'),
+      priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).nullish(),
+      automationScriptKind: z.enum(['NODE_TS', 'JMETER', 'POSTMAN']).nullish().describe('첨부된 자동화 스크립트 종류로 필터링'),
+      hasAutomation: z.boolean().nullish().describe('true면 자동화 스크립트가 첨부된 케이스만, false면 없는 케이스만'),
     },
   },
   async ({ q, priority, automationScriptKind, hasAutomation } = {}) =>
@@ -483,15 +497,20 @@ server.registerTool(
       '실제 저장되는 파일명은 fileName으로 전달한 이름을 그대로 쓰지 않고, 케이스 ID와 제목 기반으로 ' +
       '서버가 자동 생성합니다(예: STA-TC-00012_로그인_실패_처리.ts) — fileName은 확장자로 종류를 판별하는 용도입니다. ' +
       'content 맨 앞에는 실제 사용하는 엔진(Playwright/Appium/OWASP ZAP/Node.js/JMeter/Postman)을 표시하는 ' +
-      '주석(.ts/.jmx) 또는 info.description(.json)을 반드시 넣으세요 — 형식은 get_automation_script_guide 참고.',
+      '주석(.ts/.jmx) 또는 info.description(.json)을 반드시 넣으세요 — 형식은 get_automation_script_guide 참고. ' +
+      '스크립트를 작성하면서 케이스에 원래 없던 동작을 추가로 구현했다면(예: 추가 검증, 엣지 케이스 처리), ' +
+      'steps도 함께 전달해 텍스트 스텝과 실제 스크립트 동작이 어긋나지 않게 하세요 — steps를 생략하면 ' +
+      '기존 스텝은 그대로 유지되므로, 스크립트가 스텝 그대로만 구현했을 때만 생략하면 됩니다.',
     inputSchema: {
       caseId: z.string().describe('list_test_cases로 조회한 테스트 케이스 ID'),
       fileName: z.string().describe('스크립트 파일명 (.ts, .jmx, .json 중 하나로 끝나야 함 — 확장자만 사용되고 실제 저장 파일명은 케이스 ID·제목 기반으로 서버가 재생성함)'),
       content: z.string().describe('스크립트 전체 내용 — 맨 앞에 실제 엔진(Playwright/Appium/OWASP ZAP/Node.js/JMeter/Postman)을 표시하는 주석 또는 info.description을 포함해야 함'),
+      steps: z.array(z.object({ action: z.string(), expected: z.string() })).optional()
+        .describe('스크립트가 실제로 구현하는 전체 스텝 목록(전달 시 케이스의 기존 스텝을 통째로 교체) — 스크립트가 텍스트 스텝에 없던 동작을 추가로 구현했을 때만 전달'),
     },
   },
-  async ({ caseId, fileName, content }) =>
-    textResult(await callApi(`/test-cases/${caseId}/script`, { method: 'PUT', body: JSON.stringify({ fileName, content }) }))
+  async ({ caseId, fileName, content, steps }) =>
+    textResult(await callApi(`/test-cases/${caseId}/script`, { method: 'PUT', body: JSON.stringify({ fileName, content, steps }) }))
 );
 
 server.registerTool(
@@ -781,10 +800,10 @@ server.registerTool(
     title: '결함 목록 조회 / 검색',
     description: '이 프로젝트에 등록된 결함 목록을 가져옵니다. 필터를 하나도 넘기지 않으면 전체를 반환합니다.',
     inputSchema: {
-      status: z.enum(['OPEN', 'IN_PROGRESS', 'FIXED', 'CLOSED']).optional(),
-      severity: z.enum(['MINOR', 'MAJOR', 'CRITICAL']).optional(),
-      priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
-      q: z.string().optional().describe('ID/제목/설명/실제결과에 포함된 검색어 (대소문자 무시)'),
+      status: z.enum(['OPEN', 'IN_PROGRESS', 'FIXED', 'CLOSED']).nullish(),
+      severity: z.enum(['MINOR', 'MAJOR', 'CRITICAL']).nullish(),
+      priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).nullish(),
+      q: z.string().nullish().describe('ID/제목/설명/실제결과에 포함된 검색어 (대소문자 무시)'),
     },
   },
   async ({ status, severity, priority, q } = {}) =>

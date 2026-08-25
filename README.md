@@ -45,6 +45,7 @@ npm install
 | `attach_document` | 프로젝트에 문서 첨부 (base64, 최대 10MB) |
 | `remove_document` | 프로젝트 첨부 문서 삭제 |
 | `list_requirements` | 프로젝트의 요구사항 목록 / `q`로 ID·내용 검색. 각 요구사항은 `folderId`를 포함 |
+| `get_requirement` | 요구사항 하나의 전체 상세 조회 (버전, 이 요구사항을 검증하는 테스트 케이스 목록 포함) |
 | `create_requirement` | 새 요구사항 등록 — `category` 지정 시 요구사항 폴더 트리의 해당 하위 폴더에 정리됨(없으면 자동 생성) |
 | `update_requirement` | 기존 요구사항 내용 수정 (ID는 유지, 내용이 바뀌면 이전 버전 이력 자동 보존) |
 | `list_folders` | 프로젝트의 폴더 트리(id/name/parentId 평평한 목록) — `kind`로 테스트 케이스(기본값) 또는 요구사항 트리 선택. `list_test_cases`/`list_requirements`의 `folderId`와 대조해 계층 구조 조립 |

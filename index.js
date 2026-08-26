@@ -772,7 +772,7 @@ server.registerTool(
       expectedResult: z.string().optional(),
       actualResult: z.string().optional(),
       reproSteps: z.string().optional(),
-      severity: z.enum(['MINOR', 'MAJOR', 'CRITICAL']).optional(),
+      severity: z.enum(['NOTE', 'MINOR', 'MAJOR', 'CRITICAL']).optional(),
       priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
       cycleCaseId: z
         .string()
@@ -801,7 +801,7 @@ server.registerTool(
     description: '이 프로젝트에 등록된 결함 목록을 가져옵니다. 필터를 하나도 넘기지 않으면 전체를 반환합니다.',
     inputSchema: {
       status: z.enum(['OPEN', 'IN_PROGRESS', 'FIXED', 'CLOSED']).nullish(),
-      severity: z.enum(['MINOR', 'MAJOR', 'CRITICAL']).nullish(),
+      severity: z.enum(['NOTE', 'MINOR', 'MAJOR', 'CRITICAL']).nullish(),
       priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).nullish(),
       q: z.string().nullish().describe('ID/제목/설명/실제결과에 포함된 검색어 (대소문자 무시)'),
     },
@@ -835,7 +835,7 @@ server.registerTool(
       expectedResult: z.string().nullable().optional(),
       actualResult: z.string().nullable().optional(),
       reproSteps: z.string().nullable().optional(),
-      severity: z.enum(['MINOR', 'MAJOR', 'CRITICAL']).optional(),
+      severity: z.enum(['NOTE', 'MINOR', 'MAJOR', 'CRITICAL']).optional(),
       priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
       status: z.enum(['OPEN', 'IN_PROGRESS', 'FIXED', 'CLOSED']).optional(),
       roundId: z.string().nullable().optional().describe('연관된 실행 사이클(회차) ID (list_rounds로 조회, null이면 연결 해제)'),

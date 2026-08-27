@@ -683,8 +683,10 @@ server.registerTool(
     description:
       '이 케이스에 첨부된 자동화 스크립트를 프로젝트에 연결된 실제 러너에서 실행합니다. ' +
       'record_result로 직접 결과를 기록하는 대신, 실제 러너가 스크립트를 구동한 결과(Pass/Fail)를 그대로 반영합니다. ' +
-      '실행이 오래 걸려 시간 내 끝나지 않으면 status: "IN_PROGRESS"와 runId를 반환하니, ' +
-      'get_automation_run_status로 다시 확인하세요. JMeter(.jmx)나 Postman/Newman(.json) 스크립트도 ' +
+      '러너별 동시 실행 제한(테스터 관리에서 설정)에 걸리면 자리가 날 때까지 대기열에서 기다렸다가 자동으로 ' +
+      '실행되며, 이 도구는 그 대기까지 포함해서 기다립니다. 실행이 오래 걸려 시간 내 끝나지 않으면 ' +
+      'status: "IN_PROGRESS"와 runId를 반환하니, get_automation_run_status로 다시 확인하세요. ' +
+      'JMeter(.jmx)나 Postman/Newman(.json) 스크립트도 ' +
       '실행 가능합니다 — 각각 샘플러/요청·어설션 성공 여부로 Pass/Fail이 판정됩니다. 응답에 포함된 ' +
       'cycleCaseId/roundId는 바로 이 실행이 속한 세션의 케이스/회차이므로, FAIL을 결함으로 등록할 때 ' +
       'create_bug에 다른 도구로 다시 찾지 말고 그대로 넘기세요.',
@@ -897,8 +899,9 @@ server.registerTool(
     title: '연결된 러너 조회',
     description:
       '이 프로젝트에 배정된 러너(자동화 실행 에이전트)와 온라인 여부, 실행 가능한 스크립트 종류 ' +
-      '(capabilities: NODE_TS/JMETER/POSTMAN/APPIUM/OWASP_ZAP)를 조회합니다. run_case_automation 호출 전 ' +
-      '실행 가능한 러너가 있는지 미리 확인할 때 씁니다.',
+      '(capabilities: NODE_TS/JMETER/POSTMAN/APPIUM/OWASP_ZAP), 동시 실행 제한(maxConcurrency)을 ' +
+      '조회합니다. run_case_automation 호출 전 실행 가능한 러너가 있는지, 이미 다른 실행으로 자리가 ' +
+      '찼을 수 있는지 미리 확인할 때 씁니다.',
     inputSchema: {},
   },
   async () => textResult(await callApi('/runners'))

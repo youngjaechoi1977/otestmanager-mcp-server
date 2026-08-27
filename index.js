@@ -637,7 +637,11 @@ server.registerTool(
   'get_round_test_case_result',
   {
     title: '실행 회차의 케이스 하나의 결과 조회',
-    description: 'resultId를 이미 알고 있을 때(run_case_automation/record_result 이후 등) 전체 목록을 다시 받지 않고 그 결과 하나만 조회합니다.',
+    description:
+      'resultId를 이미 알고 있을 때(run_case_automation/record_result 이후 등) 전체 목록을 다시 받지 않고 ' +
+      '그 결과 하나만 조회합니다. isAutomated가 true이면 automationRun.id가 함께 오는데, 이는 항상 이 ' +
+      '결과의 가장 최근 실행 id입니다(재실행 시 이전 실행은 삭제되고 새로 생성되므로, 들고 있던 runId가 ' +
+      '최신인지 확인하려면 여기서 받은 automationRun.id와 비교하세요).',
     inputSchema: { sessionId: z.string(), roundId: z.string(), resultId: z.string() },
   },
   async ({ sessionId, roundId, resultId }) =>
@@ -686,6 +690,9 @@ server.registerTool(
       '러너별 동시 실행 제한(테스터 관리에서 설정)에 걸리면 자리가 날 때까지 대기열에서 기다렸다가 자동으로 ' +
       '실행되며, 이 도구는 그 대기까지 포함해서 기다립니다. 실행이 오래 걸려 시간 내 끝나지 않으면 ' +
       'status: "IN_PROGRESS"와 runId를 반환하니, get_automation_run_status로 다시 확인하세요. ' +
+      '이 호출은 매번 새로운 실행(run)을 생성하며, 반환되는 runId는 이번 실행 전용입니다. 같은 케이스에 ' +
+      '대한 이전 runId는 이 호출 이후 더 이상 최신 상태를 반영하지 않으니 폐기하고, 이후로는 이번에 받은 ' +
+      '새 runId로만 상태를 조회하세요. ' +
       'JMeter(.jmx)나 Postman/Newman(.json) 스크립트도 ' +
       '실행 가능합니다 — 각각 샘플러/요청·어설션 성공 여부로 Pass/Fail이 판정됩니다. 응답에 포함된 ' +
       'cycleCaseId/roundId는 바로 이 실행이 속한 세션의 케이스/회차이므로, FAIL을 결함으로 등록할 때 ' +
@@ -718,6 +725,10 @@ server.registerTool(
     title: '자동 실행 상태 조회',
     description:
       'run_case_automation이 시간 내에 끝나지 않았을 때, runId로 최종 결과를 다시 확인합니다. ' +
+      '조회한 runId가 그 사이에 같은 케이스에 대해 다시 실행된 run_case_automation으로 인해 이미 낡은 ' +
+      '(최신이 아닌) 실행일 수 있습니다. 이 케이스에 대해 더 최근 실행이 있는지 확실하지 않다면 ' +
+      'run_case_automation을 다시 호출하지 말고, 먼저 get_round_test_case_result로 그 resultId의 ' +
+      '현재 상태부터 확인하세요. ' +
       '응답의 artifacts 목록(스크린샷/영상/.jtl/리포트 등)에서 id를 얻어 get_automation_run_artifact로 ' +
       '실제 파일 내용을 가져올 수 있습니다. 응답에 포함된 cycleCaseId/roundId는 이 실행이 속한 세션의 ' +
       '케이스/회차이므로, FAIL을 결함으로 등록할 때 create_bug에 다른 도구로 다시 찾지 말고 그대로 ' +

@@ -627,7 +627,10 @@ server.registerTool(
       'true인 결과는 automationRun.id가 함께 오므로, 그 결과가 왜 그렇게 나왔는지 진단하려면 ' +
       'get_automation_run_status에 그 id를 그대로 넘기세요(다시 조회할 필요 없음). 각 결과의 ' +
       'cycleCase.testCase.automationFileName이 있으면(null이 아니면) 자동화 스크립트가 첨부된 ' +
-      '케이스이고, run_case_automation으로 그 결과(resultId)를 자동 실행할 수 있습니다.',
+      '케이스이고, run_case_automation으로 그 결과(resultId)를 자동 실행할 수 있습니다. 각 결과의 ' +
+      '최상위 id가 run_case_automation/get_round_test_case_result에 넘길 resultId입니다. ' +
+      'cycleCase.id(세션-케이스 연결 id)나 cycleCase.testCase.id(테스트 케이스 자체 id)와 혼동하지 ' +
+      '마세요 — 이 둘은 resultId가 아닙니다.',
     inputSchema: { sessionId: z.string(), roundId: z.string() },
   },
   async ({ sessionId, roundId }) => textResult(await callApi(`/sessions/${sessionId}/rounds/${roundId}/results`))
@@ -641,7 +644,10 @@ server.registerTool(
       'resultId를 이미 알고 있을 때(run_case_automation/record_result 이후 등) 전체 목록을 다시 받지 않고 ' +
       '그 결과 하나만 조회합니다. isAutomated가 true이면 automationRun.id가 함께 오는데, 이는 항상 이 ' +
       '결과의 가장 최근 실행 id입니다(재실행 시 이전 실행은 삭제되고 새로 생성되므로, 들고 있던 runId가 ' +
-      '최신인지 확인하려면 여기서 받은 automationRun.id와 비교하세요).',
+      '최신인지 확인하려면 여기서 받은 automationRun.id와 비교하세요). 각 결과의 최상위 id가 ' +
+      'run_case_automation/get_round_test_case_result에 넘길 resultId입니다. cycleCase.id(세션-' +
+      '케이스 연결 id)나 cycleCase.testCase.id(테스트 케이스 자체 id)와 혼동하지 마세요 — 이 둘은 ' +
+      'resultId가 아닙니다.',
     inputSchema: { sessionId: z.string(), roundId: z.string(), resultId: z.string() },
   },
   async ({ sessionId, roundId, resultId }) =>

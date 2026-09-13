@@ -70,6 +70,12 @@ const SCRIPT_GUIDES = {
     'JMeter / Postman)을 명시하는 표시를 남겨야 합니다** — 특히 .ts는 확장자만으로는 Playwright인지 ' +
     'Appium인지 ZAP인지 순수 Node.js인지 구분이 안 되므로 필수입니다. 형식은 종류별 가이드 참고 ' +
     '(get_automation_script_guide({ kind })).\n\n' +
+    '**대상 사이트의 주소·로그인 계정·API 토큰은 절대 스크립트에 값으로 적지 마세요.** 변수 이름으로만 ' +
+    '참조합니다 — NODE_TS는 `process.env.OTM_VAR_<키>`, JMeter는 `${__P(<키>)}`, Postman은 `{{<키>}}`. ' +
+    '키는 영문 대문자·숫자·_ 이며, 권장 이름은 `BASE_URL`, 계정은 `<별칭>_USERNAME` / `<별칭>_PASSWORD` ' +
+    '(예: ADMIN_USERNAME, ADMIN_PASSWORD) 입니다. 값은 실행하는 러너 PC의 설정 파일(프로젝트 코드별 섹션)에서 ' +
+    '주입되며, 참조한 변수의 값이 없는 러너에서는 실행되지 않고 "변수 값 없음" ERROR로 기록됩니다. ' +
+    '어떤 키를 쓸지 모르면 테스트 케이스의 사전조건·입력값에 적힌 이름을 따르거나 사용자에게 확인하세요.\n\n' +
     '세 종류 모두 run_case_automation으로 실제 러너에서 실행하고, get_automation_run_status로 ' +
     '결과(Pass/Fail, 로그, 아티팩트)를 가져올 수 있습니다. 종류별 상세 작성 규칙과 예시는 ' +
     'get_automation_script_guide({ kind })로 조회하세요 — kind는 "NODE_TS", "JMETER", "POSTMAN" 중 하나입니다.',
@@ -99,7 +105,10 @@ const SCRIPT_GUIDES = {
     "const context = await browser.newContext({ recordVideo: { dir: '.' } }); // 실패 시에도 영상 보존\n" +
     'const page = await context.newPage();\n\n' +
     'try {\n' +
-    "  await page.goto('https://example.com');\n" +
+    '  // 주소·계정은 값 대신 변수로 (러너가 OTM_VAR_* 로 주입)\n' +
+    '  await page.goto(process.env.OTM_VAR_BASE_URL!);\n' +
+    "  await page.fill('#username', process.env.OTM_VAR_ADMIN_USERNAME!);\n" +
+    "  await page.fill('#password', process.env.OTM_VAR_ADMIN_PASSWORD!);\n" +
     "  await page.click('text=로그인');\n" +
     "  await page.waitForURL('**/dashboard');\n" +
     "  console.log('PASS: 로그인 후 대시보드로 정상 이동했습니다.');\n" +
@@ -225,6 +234,8 @@ const SCRIPT_GUIDES = {
     '  </hashTree>\n' +
     '</hashTree></jmeterTestPlan>\n' +
     '```\n' +
+    '대상 호스트·계정·토큰은 값 대신 `${__P(BASE_HOST)}`, `${__P(ADMIN_PASSWORD)}`처럼 속성으로 참조하세요 — ' +
+    '러너가 변수를 JMeter 속성으로 넘겨줍니다. 기본값이 있는 `${__P(KEY,기본값)}`은 값이 없어도 실행됩니다.\n\n' +
     '실행 결과에는 `.jtl`(원본 결과)과 JMeter 자체 로그가 아티팩트로 자동 첨부됩니다.',
 
   POSTMAN:
@@ -253,8 +264,8 @@ const SCRIPT_GUIDES = {
     '  ]\n' +
     '}\n' +
     '```\n\n' +
-    '환경 변수가 필요하면 요청 URL/값에 미리 채워서 첨부하세요 — 컬렉션 파일 하나만 전달되는 구조라 ' +
-    '별도 Postman 환경 파일은 지원하지 않습니다. 실행 로그에는 Newman CLI 출력(요청별 결과, 실패한 ' +
+    '주소·계정·토큰은 요청에 값으로 적지 말고 `{{BASE_URL}}`, `{{ADMIN_PASSWORD}}`처럼 변수로 두세요 — ' +
+    '러너가 변수를 Newman 환경(environment)으로 넘겨주며, 환경 값은 컬렉션 변수보다 우선합니다. 실행 로그에는 Newman CLI 출력(요청별 결과, 실패한 ' +
     '어설션의 기대/실제 값)이 그대로 남고, JSON 리포트(통계·실패 상세·타이밍 — 응답 본문 원본은 용량 ' +
     '문제로 제외)도 아티팩트로 첨부됩니다.',
 };

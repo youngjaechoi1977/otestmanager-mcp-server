@@ -73,9 +73,10 @@ const SCRIPT_GUIDES = {
     '**대상 사이트의 주소·로그인 계정·API 토큰은 절대 스크립트에 값으로 적지 마세요.** 변수 이름으로만 ' +
     '참조합니다 — NODE_TS는 `process.env.OTM_VAR_<키>`, JMeter는 `${__P(<키>)}`, Postman은 `{{<키>}}`. ' +
     '키는 영문 대문자·숫자·_ 이며, 권장 이름은 `BASE_URL`, 계정은 `<별칭>_USERNAME` / `<별칭>_PASSWORD` ' +
-    '(예: ADMIN_USERNAME, ADMIN_PASSWORD) 입니다. 값은 실행하는 러너 PC의 설정 파일(프로젝트 코드별 섹션)에서 ' +
+    '(예: ADMIN_USERNAME, ADMIN_PASSWORD) 입니다. 값은 프로젝트 변수(공용)와 실행하는 러너 PC의 설정 파일(개인, 우선)에서 ' +
     '주입되며, 참조한 변수의 값이 없는 러너에서는 실행되지 않고 "변수 값 없음" ERROR로 기록됩니다. ' +
-    '어떤 키를 쓸지 모르면 테스트 케이스의 사전조건·입력값에 적힌 이름을 따르거나 사용자에게 확인하세요.\n\n' +
+    '쓸 수 있는 키는 list_project_variables(프로젝트 공용 값)와 list_runners의 runnerFileVariableKeys(러너별 ' +
+    '값)로 확인하고, 없으면 테스트 케이스에 적힌 이름을 따르거나 사용자에게 확인하세요.\n\n' +
     '세 종류 모두 run_case_automation으로 실제 러너에서 실행하고, get_automation_run_status로 ' +
     '결과(Pass/Fail, 로그, 아티팩트)를 가져올 수 있습니다. 종류별 상세 작성 규칙과 예시는 ' +
     'get_automation_script_guide({ kind })로 조회하세요 — kind는 "NODE_TS", "JMETER", "POSTMAN" 중 하나입니다.',
@@ -929,10 +930,74 @@ server.registerTool(
       '이 프로젝트에 배정된 러너(자동화 실행 에이전트)와 온라인 여부, 실행 가능한 스크립트 종류 ' +
       '(capabilities: NODE_TS/JMETER/POSTMAN/APPIUM/OWASP_ZAP), 동시 실행 제한(maxConcurrency)을 ' +
       '조회합니다. run_case_automation 호출 전 실행 가능한 러너가 있는지, 이미 다른 실행으로 자리가 ' +
-      '찼을 수 있는지 미리 확인할 때 씁니다.',
+      '찼을 수 있는지 미리 확인할 때 씁니다. runnerFileVariableKeys는 그 러너 PC의 설정 파일이 이 프로젝트에 ' +
+      '대해 직접 지정한(프로젝트 변수보다 우선하는) 변수 키 이름입니다 — 값은 포함되지 않으며, 러너가 마지막으로 ' +
+      '연결/재확인한 시점 기준입니다. 스크립트가 참조하는 변수가 프로젝트 변수에도 여기에도 없으면 그 러너에서는 ' +
+      '실행되지 않습니다.',
     inputSchema: {},
   },
   async () => textResult(await callApi('/runners'))
+);
+
+server.registerTool(
+  'list_project_variables',
+  {
+    title: '자동화 변수 조회',
+    description:
+      '자동화 스크립트가 값 대신 이름으로 참조하는 프로젝트 변수(대상 주소, 로그인 계정, 토큰 등) 목록을 ' +
+      '조회합니다. 비밀 변수(secret=true)는 값이 반환되지 않고 존재 여부만 알 수 있습니다. 스크립트를 작성할 ' +
+      '때 어떤 키를 쓸 수 있는지 확인하는 용도이며, 스크립트에는 값이 아니라 키 이름으로만 참조하세요 ' +
+      '(get_automation_script_guide 참고). 러너 PC의 설정 파일이 같은 키를 덮어쓸 수 있습니다(list_runners 참고).',
+    inputSchema: {},
+  },
+  async () => textResult(await callApi('/variables'))
+);
+
+server.registerTool(
+  'set_project_variables',
+  {
+    title: '자동화 변수 등록/수정',
+    description:
+      '프로젝트 변수를 한 번에 등록하거나 수정합니다. 이 프로젝트를 실행하는 모든 러너가 받는 공용 값입니다. ' +
+      '전부 검사한 뒤 한꺼번에 저장하므로 하나라도 규칙에 어긋나면 아무것도 저장되지 않습니다. 기존 변수에서 ' +
+      'value를 생략하거나 빈 문자열로 주면 저장된 값은 그대로 두고 설명/비밀 여부만 바꿉니다. 비밀 변수를 일반 ' +
+      '변수로 바꿀 때는 value를 다시 주어야 합니다. 사용자가 명시적으로 알려준 값만 등록하고, 값을 추측하거나 ' +
+      '만들어내지 마세요.',
+    inputSchema: {
+      variables: z
+        .array(
+          z.object({
+            key: z.string().describe('영문 대문자로 시작, 대문자·숫자·_ 만. 예: BASE_URL, ADMIN_USERNAME, ADMIN_PASSWORD'),
+            value: z.string().nullable().optional().describe('값. 기존 변수에서 생략/빈 문자열이면 기존 값 유지'),
+            secret: z
+              .boolean()
+              .optional()
+              .describe('비밀 여부. 새 변수의 기본값은 true. URL처럼 로그에 보여도 되는 값만 false'),
+            description: z.string().nullable().optional().describe('설명 (예: 관리자 테스트 계정)'),
+          })
+        )
+        .min(1)
+        .describe('등록/수정할 변수 목록'),
+    },
+  },
+  async ({ variables }) => textResult(await callApi('/variables', { method: 'PUT', body: JSON.stringify({ variables }) }))
+);
+
+server.registerTool(
+  'delete_project_variable',
+  {
+    title: '자동화 변수 삭제',
+    description:
+      '프로젝트 변수를 삭제합니다. 이 변수를 참조하는 스크립트는 러너 설정 파일에 같은 키가 없으면 더 이상 ' +
+      '실행되지 않습니다.',
+    inputSchema: {
+      key: z.string().describe('삭제할 변수 키'),
+    },
+  },
+  async ({ key }) => {
+    await callApi(`/variables/${encodeURIComponent(key)}`, { method: 'DELETE' });
+    return textResult({ deleted: key });
+  }
 );
 
 server.registerTool(

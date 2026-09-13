@@ -70,7 +70,10 @@ npm install
 | `run_case_automation` | 케이스에 첨부된 자동화 스크립트를 실제 연결된 러너에서 실행하고 결과를 반영 |
 | `get_automation_run_status` | `run_case_automation`이 시간 내 끝나지 않았을 때 최종 결과(로그, 아티팩트 목록 포함) 재확인 |
 | `get_automation_run_artifact` | 실행 결과의 첨부 파일(스크린샷/영상/.jtl 등)을 base64로 가져오기 (최대 10MB) |
-| `list_runners` | 프로젝트에 배정된 러너의 온라인 여부·실행 가능한 스크립트 종류(capabilities) 조회 — `run_case_automation` 호출 전 미리 확인용 |
+| `list_runners` | 프로젝트에 배정된 러너의 온라인 여부·실행 가능한 스크립트 종류(capabilities) 조회 — `run_case_automation` 호출 전 미리 확인용. `runnerFileVariableKeys`는 그 러너의 `otm-secrets.ini`가 이 프로젝트에 대해 덮어쓰는 변수 키 이름(값 없음) |
+| `list_project_variables` | 자동화 변수(대상 주소·로그인 계정·토큰) 목록 — 키, 설명, 비밀 여부. 비밀 변수는 값이 반환되지 않음 |
+| `set_project_variables` | 자동화 변수 여러 개를 한 번에 등록/수정 — 전부 검사한 뒤 저장하므로 하나라도 규칙에 어긋나면 아무것도 저장 안 됨. 기존 변수에서 `value`를 생략/빈 문자열로 주면 저장된 값 유지 |
+| `delete_project_variable` | 자동화 변수 삭제 |
 | `create_bug` | 결함 등록 (선택적으로 `roundId`를 넘기면 실행 사이클도 함께 기록) |
 | `list_bugs` | 결함 목록 조회 / `status`·`severity`·`priority`·`q`(키워드)로 검색·필터링 |
 | `get_bug` | 결함 하나의 전체 상세 조회 |
@@ -80,6 +83,13 @@ npm install
 API 키로 직접 기록한 실행 결과·결함에는 "🔑 (키 이름)" 배지가 붙어, 사람이 실행한 것과 구분됩니다.
 자동화 스크립트가 첨부된 케이스는 `record_result`로 직접 판정하지 말고 `run_case_automation`을 사용하세요 —
 실제 러너가 스크립트를 구동한 결과가 반영되어 "실행자"란에 러너 이름(🤖)이 표시됩니다.
+
+로그인이 필요한 사이트의 스크립트에는 계정·주소를 값으로 적지 말고 `process.env.OTM_VAR_<키>`(JMeter
+`${__P(키)}`, Postman `{{키}}`)로 참조하세요. 쓸 수 있는 키는 `list_project_variables`와 `list_runners`의
+`runnerFileVariableKeys`로 확인합니다. 값은 실행 시 러너가 주입합니다 — 규칙 전체는
+`get_automation_script_guide`와 OTestManager 메인 README의 "자동화 변수" 절 참고(이 폴더는 공개 저장소로
+미러링되므로 상대 경로 링크는 걸지 않습니다). `set_project_variables`로는 사용자가
+직접 알려준 값만 등록하고, 값을 추측해서 만들지 마세요.
 
 Appium/JMeter/Postman/OWASP ZAP처럼 이 저장소 밖의 도구를 대상으로 스크립트를 작성해야 한다면, 먼저
 `get_automation_script_guide`를 호출하세요 — 러너가 실제로 실행하는 방식(판정 기준, 필수 요소, 환경

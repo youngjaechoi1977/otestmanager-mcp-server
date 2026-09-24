@@ -1,10 +1,10 @@
 # OTestManager2026 — MCP 서버
 
-외부 LLM 클라이언트(Claude Desktop, Claude Code 등)가 OTestManager2026의 한 프로젝트에
+외부 LLM 클라이언트(Claude Desktop, Claude Code 등)가 OTestManager2026 프로젝트에
 테스트 케이스를 만들고, 실행 결과를 조회·기록하고, 결함을 등록할 수 있게 해주는 MCP 서버입니다.
 
 이 서버는 상태를 갖지 않는 얇은 어댑터입니다 — 모든 툴 호출은 그대로 OTestManager2026
-REST API(`/api/mcp/*`)를 프로젝트 API 키로 호출할 뿐입니다.
+공개 API(`/api/v1/projects/<프로젝트>/*`)를 계정 API 키로 호출할 뿐입니다.
 
 ## 설치
 
@@ -15,7 +15,8 @@ npm install
 
 ## 사용법
 
-1. OTestManager2026의 프로젝트 관리 화면에서 API 키를 발급받습니다.
+1. OTestManager2026 사이드바 아래의 **내 API 키**에서 키를 발급받습니다 (조직 관리자가 테스터 관리 화면에서
+   준 **"API 키"** 권한이 필요합니다. 관리자는 항상 갖고 있습니다).
 2. MCP 클라이언트(Claude Desktop 등) 설정에 다음과 같이 등록합니다:
 
 ```json
@@ -26,19 +27,67 @@ npm install
       "args": ["/path/to/OTestManager/mcp-server/index.js"],
       "env": {
         "OTM_SERVER_URL": "http://localhost:4000",
-        "OTM_API_KEY": "otm_xxx"
+        "OTM_API_KEY": "otm_u_xxx"
       }
     }
   }
 }
 ```
 
-키는 발급 시 1번만 표시되므로 미리 복사해 두세요. 이 키는 **해당 프로젝트에만** 접근할 수 있습니다.
+키는 발급 시 1번만 표시되므로 미리 복사해 두세요.
+
+### 프로젝트 지정
+
+계정 API 키 하나로 **내가 접근할 수 있는 모든 프로젝트**를 다룹니다. 그래서 `get_automation_script_guide`와
+`list_my_projects`를 뺀 모든 툴은 **`project` 인자가 필수**입니다. 다음 중 하나로 지정합니다.
+
+- 프로젝트 이름 (예: `쇼핑몰 웹`)
+- 프로젝트 코드 (예: `ABC123`, 대소문자 무관)
+- 프로젝트 ID, 또는 브라우저 주소창의 프로젝트 URL
+- 여러 조직에 같은 이름이나 코드가 있으면 `조직명/코드` (예: `STA/ABC123`)
+
+해당하는 프로젝트가 여러 개면 후보 목록과 함께 오류를 돌려주고, 추측해서 고르지 않습니다. 접근할 수 있는
+프로젝트는 `list_my_projects`로 확인합니다. 이 목록은 이름·코드·ID만 보여주고 내용은 포함하지 않습니다.
+
+키는 **내가 그 프로젝트에 접근할 수 있는 동안에만** 동작합니다. 판단은 호출할 때마다 새로 합니다.
+- 조직 관리자는 그 조직의 모든 프로젝트, 테스터는 자기가 배정된 프로젝트만 접근할 수 있습니다.
+- 그 조직에서 "API 키" 권한이 있어야 합니다. 권한이 빠지면 그 조직에서는 바로 막힙니다.
+- 발급할 때 사용할 조직을 좁혔다면 그 조직들에서만 동작합니다.
+
+### 읽기 전용 키
+
+발급할 때 **읽기 전용**을 고르면 MCP 서버가 조회 툴만 등록합니다(쓰기 툴 20개는 나타나지 않습니다).
+서버도 GET 외의 요청을 거절합니다.
+
+### 이전 방식의 프로젝트 키
+
+프로젝트 관리 화면에서 발급하던 프로젝트 단위 키(`otm_…`)는 더 이상 새로 발급하지 않지만, 이미 발급된 키는
+그대로 동작합니다. 이 키로 연결하면 서버가 키 종류를 자동으로 알아보고 예전처럼 `project` 인자 없이 그 한
+프로젝트만 다룹니다.
+
+## 공개 API로 직접 호출
+
+MCP 없이 같은 키로 REST API를 호출할 수 있습니다. MCP 툴은 모두 이 API를 그대로 호출합니다.
+
+```bash
+# 접근 가능한 프로젝트 목록 (이름·코드·ID만)
+curl -H "X-Api-Key: otm_u_xxx" https://<서버>/api/v1/projects
+
+# 이름·URL·"조직/코드"를 프로젝트 ID로 바꾸기 (쿼리 문자열로 넘기므로 슬래시가 있어도 안전)
+curl -H "X-Api-Key: otm_u_xxx" "https://<서버>/api/v1/projects/resolve?ref=<이름 또는 URL>"
+
+# 프로젝트 데이터 — 경로에는 프로젝트 ID나 코드를 넣습니다
+curl -H "X-Api-Key: otm_u_xxx" https://<서버>/api/v1/projects/<ID 또는 코드>/requirements
+```
+
+`/api/v1/me`는 키 이름·종류·권한·만료일과 소유자를 돌려줍니다. 프로젝트 아래 경로는 기존 MCP API와 같습니다
+(`/requirements`, `/test-cases`, `/sessions`, `/bugs`, `/variables`, `/summary` …).
 
 ## 제공 툴
 
 | 툴 | 설명 |
 |---|---|
+| `list_my_projects` | 이 키로 접근할 수 있는 프로젝트 목록(조직, 이름, 코드, ID, 상태). 내용은 포함하지 않음. 계정 키에서만 제공 |
 | `get_project` | 프로젝트 이름/코드/상세 내용/상태 조회 |
 | `update_project_description` | 프로젝트 상세 내용(설명) 작성/수정 |
 | `list_documents` | 프로젝트 첨부 문서 목록 |

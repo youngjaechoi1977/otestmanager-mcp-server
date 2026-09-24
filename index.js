@@ -1,8 +1,16 @@
 #!/usr/bin/env node
-// OTestManager2026 MCP server — a thin adapter exposing one project's test cases,
-// sessions, execution results, and bugs to external LLM clients (e.g. Claude Desktop,
-// Claude Code) via a project-scoped API key. It holds no state of its own; every tool
-// call just forwards to the OTestManager2026 REST API under /api/mcp/*.
+// OTestManager2026 MCP server — a thin adapter exposing OTestManager2026 projects' requirements,
+// test cases, sessions, execution results, and bugs to external LLM clients (e.g. Claude
+// Desktop, Claude Code). It holds no state of its own; every tool call just forwards to the
+// OTestManager2026 REST API.
+//
+// Two kinds of key work here:
+//   - An account key (otm_u_…, issued under 내 API 키) reaches every project its owner can open.
+//     Every project tool then takes a required `project` argument (name, code, id, or project
+//     URL) and calls the public API at /api/v1/projects/<id>/…; list_my_projects shows which
+//     projects there are. A read-only account key gets only the reading tools.
+//   - A project key (the original kind, no longer issued) is tied to one project and keeps
+//     working exactly as before, against /api/mcp/…, with no `project` argument.
 //
 // Usage (e.g. in a Claude Desktop mcpServers config):
 //   {
@@ -10,23 +18,24 @@
 //     "args": ["/path/to/mcp-server/index.js"],
 //     "env": {
 //       "OTM_SERVER_URL": "http://localhost:4000",
-//       "OTM_API_KEY": "otm_xxx"
+//       "OTM_API_KEY": "otm_u_xxx"
 //     }
 //   }
 
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 
-const SERVER_URL = process.env.OTM_SERVER_URL || 'http://localhost:4000';
+const SERVER_URL = (process.env.OTM_SERVER_URL || 'http://localhost:4000').replace(/\/+$/, '');
 const API_KEY = process.env.OTM_API_KEY;
 if (!API_KEY) {
-  console.error('OTM_API_KEY 환경변수가 필요합니다 (프로젝트 관리 화면에서 발급).');
+  console.error('OTM_API_KEY 환경변수가 필요합니다 (OTestManager의 내 API 키 화면에서 발급).');
   process.exit(1);
 }
 
-async function callApi(path, options = {}) {
-  const res = await fetch(`${SERVER_URL}/api/mcp${path}`, {
+async function request(url, options = {}) {
+  const res = await fetch(`${SERVER_URL}${url}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -35,7 +44,59 @@ async function callApi(path, options = {}) {
     },
   });
   const text = await res.text();
-  const body = text ? JSON.parse(text) : null;
+  let body = null;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = null;
+  }
+  return { res, body };
+}
+
+// What kind of key this is. A server from before /api/v1 answers 404 here, and only ever issued
+// project keys, so that is treated as one.
+async function detectKey() {
+  const { res, body } = await request('/api/v1/me');
+  if (res.status === 404) return { kind: 'PROJECT', scope: 'READ_WRITE' };
+  if (!res.ok) {
+    console.error(`[mcp] API 키 확인 실패: ${body?.error || res.status}`);
+    process.exit(1);
+  }
+  return body.key;
+}
+
+const KEY = await detectKey();
+const ACCOUNT_KEY = KEY.kind === 'USER';
+const READ_ONLY = KEY.scope === 'READ';
+
+// The project the current tool call named, for callApi to route it to. Set per call by the
+// registerTool wrapper below, so concurrent calls naming different projects never mix.
+const currentProject = new AsyncLocalStorage();
+
+// The name/code/URL a caller used → the project's id. Ids don't change, and whether the key may
+// still reach that project is checked by the server on every call regardless, so this only saves
+// the extra round trip.
+const resolvedProjects = new Map();
+
+async function projectIdFor(ref) {
+  if (!ref || !String(ref).trim()) {
+    throw new Error('project 인자가 필요합니다. list_my_projects로 접근 가능한 프로젝트를 확인한 뒤 사용자에게 어느 프로젝트인지 확인하세요.');
+  }
+  const key = String(ref).trim();
+  if (resolvedProjects.has(key)) return resolvedProjects.get(key);
+  // Resolved through the query string rather than the path: a name or URL can hold characters
+  // (a slash above all) that a proxy in front of the server would not pass through a path intact.
+  const { res, body } = await request(`/api/v1/projects/resolve?ref=${encodeURIComponent(key)}`);
+  if (!res.ok) throw new Error(body?.error || `프로젝트 확인 실패 (${res.status})`);
+  resolvedProjects.set(key, body.id);
+  return body.id;
+}
+
+async function callApi(path, options = {}) {
+  const base = ACCOUNT_KEY
+    ? `/api/v1/projects/${encodeURIComponent(await projectIdFor(currentProject.getStore()))}`
+    : '/api/mcp';
+  const { res, body } = await request(`${base}${path}`, options);
   if (!res.ok) {
     throw new Error(body?.error || `요청 실패 (${res.status})`);
   }
@@ -54,7 +115,68 @@ function textResult(data) {
   return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
 }
 
-const server = new McpServer({ name: 'otestmanager', version: '1.0.0' });
+const server = new McpServer({ name: 'otestmanager', version: '2.0.0' });
+
+// Tools that change something. A read-only account key leaves them out altogether, rather than
+// offering the model tools whose every call would be refused.
+const WRITE_TOOLS = new Set([
+  'update_project_description', 'attach_document', 'remove_document',
+  'create_requirement', 'update_requirement',
+  'create_test_case', 'update_test_case', 'attach_automation_script', 'remove_automation_script',
+  'create_session', 'add_case_to_session', 'update_case_requirements',
+  'record_result', 'run_case_automation',
+  'create_bug', 'update_bug', 'link_bug_to_result', 'attach_bug_evidence',
+  'set_project_variables', 'delete_project_variable',
+]);
+
+// Tools that don't touch a project, and so take no `project` argument.
+const PROJECT_FREE_TOOLS = new Set(['get_automation_script_guide']);
+
+const PROJECT_ARG = z
+  .string()
+  .min(1)
+  .describe(
+    '대상 프로젝트 — 프로젝트 이름, 코드(예: ABC123), ID 또는 프로젝트 URL. 여러 조직에 같은 코드/이름이 있으면 ' +
+      '"조직명/코드" 형식으로 지정합니다. 사용자가 어느 프로젝트인지 말하지 않았다면 추측하지 말고 ' +
+      'list_my_projects로 목록을 보여준 뒤 물어보세요.'
+  );
+
+// With an account key, every project tool gets the required `project` argument and runs with it
+// as the current project. The tool definitions below stay written as if for one project.
+if (ACCOUNT_KEY) {
+  const register = server.registerTool.bind(server);
+  server.registerTool = (name, config, handler) => {
+    if (READ_ONLY && WRITE_TOOLS.has(name)) return undefined;
+    if (PROJECT_FREE_TOOLS.has(name)) return register(name, config, handler);
+    return register(
+      name,
+      { ...config, inputSchema: { project: PROJECT_ARG, ...(config.inputSchema ?? {}) } },
+      (args = {}, extra) => {
+        const { project, ...rest } = args;
+        return currentProject.run(project, () => handler(rest, extra));
+      }
+    );
+  };
+
+  register(
+    'list_my_projects',
+    {
+      title: '접근 가능한 프로젝트 목록',
+      description:
+        '이 API 키로 접근할 수 있는 프로젝트 목록(조직, 이름, 코드, ID, 상태)을 가져옵니다. 내용(요구사항, ' +
+        '테스트 케이스 등)은 포함하지 않습니다. 다른 도구는 모두 project 인자로 프로젝트를 지정해야 하므로, ' +
+        '사용자가 프로젝트를 말하지 않았을 때 이 목록을 보여주고 어느 프로젝트인지 물어보세요.',
+      inputSchema: {},
+    },
+    async () => {
+      const { res, body } = await request('/api/v1/projects');
+      if (!res.ok) throw new Error(body?.error || `요청 실패 (${res.status})`);
+      return textResult(
+        body.map((p) => ({ organization: p.org.name, name: p.name, code: p.code, id: p.id, status: p.status }))
+      );
+    }
+  );
+}
 
 // Returned by get_automation_script_guide — the runner actually executing these scripts
 // lives in a separate repo the external LLM client can't read, so these conventions and

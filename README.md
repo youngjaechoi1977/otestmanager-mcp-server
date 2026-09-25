@@ -13,6 +13,8 @@ cd mcp-server
 npm install
 ```
 
+설치형(on-premise) OTestManager를 쓴다면 설치할 것이 없습니다. 로그인한 뒤 **내 API 키** 화면에서 **MCP 서버 파일 받기**로 `otestmanager-mcp.mjs` 한 파일을 받으면 됩니다. 필요한 라이브러리가 모두 들어 있어 Node.js 18 이상만 있으면 `node otestmanager-mcp.mjs`로 바로 실행되고, 인터넷(npm)이 없는 PC에서도 동작합니다. 같은 파일은 저장소에서 `cd server && node scripts/build-mcp.mjs`로 만들 수 있습니다(`mcp-server/dist/otestmanager-mcp.mjs`).
+
 ## 사용법
 
 1. OTestManager2026 사이드바 아래의 **내 API 키**에서 키를 발급받습니다. 조직 관리자는 항상 발급할 수 있고,

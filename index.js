@@ -198,8 +198,9 @@ const SCRIPT_GUIDES = {
     '"변수 값 없음" ERROR로 기록됩니다. 각 컴패니언이 이 프로젝트에 대해 가진 키 이름은 list_companions의 ' +
     'testValueKeys로 확인하고, 없으면 테스트 케이스에 적힌 이름을 따르거나 사용자에게 확인하세요.\n\n' +
     '스크립트는 run_case_automation으로 실제 OTM Companion에서 실행하고, get_automation_run_status로 ' +
-    '결과(Pass/Fail, 로그, 아티팩트)를 가져올 수 있습니다. 지금 OTM Companion이 실행하는 것은 NODE_TS(.ts)이며, ' +
-    'JMeter와 Postman은 아직 실행하지 않습니다. 종류별 상세 작성 규칙과 예시는 ' +
+    '결과(Pass/Fail, 로그, 아티팩트)를 가져올 수 있습니다. NODE_TS는 모든 OTM Companion이 실행하고, ' +
+    'JMeter·Postman·Appium·OWASP ZAP은 그 도구를 설치한 컴패니언만 실행합니다(list_companions의 capabilities로 ' +
+    '확인; 없는 컴패니언에는 실행을 보내지 않습니다). 종류별 상세 작성 규칙과 예시는 ' +
     'get_automation_script_guide({ kind })로 조회하세요 — kind는 "NODE_TS", "JMETER", "POSTMAN" 중 하나입니다.',
 
   NODE_TS:
@@ -245,14 +246,15 @@ const SCRIPT_GUIDES = {
     '}\n' +
     '```\n\n' +
     '### Appium (모바일 앱, webdriverio)\n' +
-    '**OTM Companion은 아직 Appium 스크립트를 실행하지 못합니다**(webdriverio가 포함되어 있지 않음). 형식만 참고하세요. ' +
-    'Appium 서버와 실제 기기/에뮬레이터는 미리 준비되어 있어야 하고, capabilities는 그 기기/앱에 맞게 채워야 합니다.\n' +
+    'Appium을 설치한 OTM Companion이 실행합니다: `import ... from \'webdriverio\'`가 있는 스크립트면 컴패니언이 Appium ' +
+    '서버(UiAutomator2 드라이버 포함)를 먼저 띄우고, 주소는 OTM_APPIUM_HOST/OTM_APPIUM_PORT 환경변수로 줍니다. ' +
+    'Android 기기나 에뮬레이터는 그 PC에 연결되어(adb devices에 보여야) 있어야 하고, capabilities는 그 기기/앱에 맞게 채워야 합니다.\n' +
     '```ts\n' +
     "// Engine: Appium\n" +
     "import { remote } from 'webdriverio';\n\n" +
     'const driver = await remote({\n' +
-    "  hostname: 'localhost',\n" +
-    '  port: 4723,\n' +
+    "  hostname: process.env.OTM_APPIUM_HOST || 'localhost',\n" +
+    '  port: Number(process.env.OTM_APPIUM_PORT || 4723),\n' +
     '  capabilities: {\n' +
     "    platformName: 'Android',\n" +
     "    'appium:automationName': 'UiAutomator2',\n" +
@@ -276,7 +278,8 @@ const SCRIPT_GUIDES = {
     '}\n' +
     '```\n\n' +
     '### OWASP ZAP (보안 baseline 스캔)\n' +
-    'ZAP 데몬은 실행할 PC에서 미리 띄워 두어야 합니다(기본 포트 8090, OTM Companion이 대신 띄우지 않음) — ' +
+    'OWASP ZAP을 설치한 OTM Companion이 실행합니다: 스크립트가 OTM_ZAP_PORT나 ZAP API 경로(/JSON/...)를 쓰면 컴패니언이 ' +
+    'ZAP 데몬을 먼저 띄웁니다(127.0.0.1, 기본 포트 8090, API 키 없음) — ' +
     '별도 클라이언트 라이브러리 없이 순수 fetch로 REST API를 호출합니다. baseline 스캔(spider ' +
     '+ passive scan)만 다루며, 대상 서버에 부하를 주는 active scan은 포함하지 않습니다. **반드시 테스트 ' +
     '권한이 있는 대상만 스캔하세요** — 대상 URL은 케이스의 사전조건/입력값 등에 명시하고, 임의로 다른 ' +
@@ -315,8 +318,8 @@ const SCRIPT_GUIDES = {
 
   JMETER:
     '## JMETER (.jmx) — 부하테스트\n\n' +
-    '**OTM Companion은 아직 JMeter를 실행하지 못합니다.** 첨부와 보관은 되며, 실행 지원이 추가되면 ' +
-    '`jmeter -n -t <파일>`로 실행됩니다. **JMeter는 샘플러가 실패해도 프로세스 종료 코드가 0**이므로, Pass/Fail은 결과 파일의 각 ' +
+    'JMeter를 설치한 OTM Companion이 `jmeter -n -t <파일>`로 실행합니다(컴패니언이 받은 JMeter와 Java 사용). ' +
+    '변수는 `${__P(KEY)}`로 읽습니다 — 값이 없는 컴패니언에는 실행을 보내지 않습니다. **JMeter는 샘플러가 실패해도 프로세스 종료 코드가 0**이므로, Pass/Fail은 결과 파일의 각 ' +
     '샘플 success 값으로 판정합니다 — 반드시 판정 대상 요청에 **응답 어설션(Response Assertion)**이나 ' +
     '**기간 어설션(Duration Assertion)** 등을 넣어야 하나라도 실패 시 FAIL로 기록됩니다 (어설션이 없으면 ' +
     '요청이 뭘 반환하든 항상 PASS로 기록됨).\n\n' +
@@ -362,8 +365,7 @@ const SCRIPT_GUIDES = {
 
   POSTMAN:
     '## POSTMAN (.json) — Postman 컬렉션 (Newman으로 실행)\n\n' +
-    '**OTM Companion은 아직 Postman 컬렉션을 실행하지 못합니다.** 첨부와 보관은 되며, 실행 지원이 추가되면 ' +
-    'Export한 컬렉션 JSON(v2.1 권장)을 `newman run`으로 실행합니다. ' +
+    'Postman(Newman)을 설치한 OTM Companion이 Export한 컬렉션 JSON(v2.1 권장)을 `newman run`으로 실행합니다. ' +
     '**Newman은 (JMeter와 달리) 어설션/요청이 실패하면 스스로 종료 코드 1을 반환**하므로 그대로 Pass/Fail로 ' +
     '판정됩니다. **컬렉션의 각 요청에 Tests 스크립트(event.listen="test")로 검증 로직이 있어야 의미 있게 ' +
     'Pass/Fail이 갈립니다** — 요청만 있고 테스트 스크립트가 없으면 응답 내용과 무관하게 항상 PASS로 ' +

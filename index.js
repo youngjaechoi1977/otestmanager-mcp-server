@@ -192,7 +192,7 @@ const SCRIPT_GUIDES = {
     '(get_automation_script_guide({ kind })).\n\n' +
     '**대상 사이트의 주소·로그인 계정·API 토큰은 절대 스크립트에 값으로 적지 마세요.** 변수 이름으로만 ' +
     '참조합니다 — NODE_TS는 `process.env.OTM_VAR_<키>`, JMeter는 `${__P(<키>)}`, Postman은 `{{<키>}}`. ' +
-    '키는 영문 대문자·숫자·_ 이며, 권장 이름은 `BASE_URL`, 계정은 `<별칭>_USERNAME` / `<별칭>_PASSWORD` ' +
+    '키는 영문자·숫자·_ 이고 대소문자를 구별하며(스크립트의 이름과 글자 그대로 같아야 함), 권장 이름은 `BASE_URL`, 계정은 `<별칭>_USERNAME` / `<별칭>_PASSWORD` ' +
     '(예: ADMIN_USERNAME, ADMIN_PASSWORD) 입니다. 값은 서버에 없습니다 — 실행하는 사람 PC의 OTM Companion이 ' +
     '자기 "테스트 계정"(프로젝트별)에서 주입하며, 참조한 키의 값이 없는 컴패니언에는 실행을 보내지 않거나 ' +
     '"변수 값 없음" ERROR로 기록됩니다. 각 컴패니언이 이 프로젝트에 대해 가진 키 이름은 list_companions의 ' +

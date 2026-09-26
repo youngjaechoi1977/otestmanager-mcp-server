@@ -126,7 +126,6 @@ const WRITE_TOOLS = new Set([
   'create_session', 'add_case_to_session', 'update_case_requirements',
   'record_result', 'run_case_automation',
   'create_bug', 'update_bug', 'link_bug_to_result', 'attach_bug_evidence',
-  'set_project_variables', 'delete_project_variable',
 ]);
 
 // Tools that don't touch a project, and so take no `project` argument.
@@ -178,10 +177,9 @@ if (ACCOUNT_KEY) {
   );
 }
 
-// Returned by get_automation_script_guide — the runner actually executing these scripts
-// lives in a separate repo the external LLM client can't read, so these conventions and
-// examples are duplicated here (kept in sync with runner/README.md) rather than assumed
-// knowledge.
+// Returned by get_automation_script_guide — OTM Companion, which actually executes these
+// scripts, lives in a separate repo the external LLM client can't read, so these conventions
+// and examples are duplicated here rather than assumed knowledge.
 const SCRIPT_GUIDES = {
   OVERVIEW:
     '자동화 스크립트는 파일명 확장자로 종류가 자동 판별됩니다 (attach_automation_script 호출 시 별도 kind 지정 불필요):\n' +
@@ -195,17 +193,19 @@ const SCRIPT_GUIDES = {
     '**대상 사이트의 주소·로그인 계정·API 토큰은 절대 스크립트에 값으로 적지 마세요.** 변수 이름으로만 ' +
     '참조합니다 — NODE_TS는 `process.env.OTM_VAR_<키>`, JMeter는 `${__P(<키>)}`, Postman은 `{{<키>}}`. ' +
     '키는 영문 대문자·숫자·_ 이며, 권장 이름은 `BASE_URL`, 계정은 `<별칭>_USERNAME` / `<별칭>_PASSWORD` ' +
-    '(예: ADMIN_USERNAME, ADMIN_PASSWORD) 입니다. 값은 프로젝트 변수(공용)와 실행하는 러너 PC의 설정 파일(개인, 우선)에서 ' +
-    '주입되며, 참조한 변수의 값이 없는 러너에서는 실행되지 않고 "변수 값 없음" ERROR로 기록됩니다. ' +
-    '쓸 수 있는 키는 list_project_variables(프로젝트 공용 값)와 list_runners의 runnerFileVariableKeys(러너별 ' +
-    '값)로 확인하고, 없으면 테스트 케이스에 적힌 이름을 따르거나 사용자에게 확인하세요.\n\n' +
-    '세 종류 모두 run_case_automation으로 실제 러너에서 실행하고, get_automation_run_status로 ' +
-    '결과(Pass/Fail, 로그, 아티팩트)를 가져올 수 있습니다. 종류별 상세 작성 규칙과 예시는 ' +
+    '(예: ADMIN_USERNAME, ADMIN_PASSWORD) 입니다. 값은 서버에 없습니다 — 실행하는 사람 PC의 OTM Companion이 ' +
+    '자기 "테스트 계정"(프로젝트별)에서 주입하며, 참조한 키의 값이 없는 컴패니언에는 실행을 보내지 않거나 ' +
+    '"변수 값 없음" ERROR로 기록됩니다. 각 컴패니언이 이 프로젝트에 대해 가진 키 이름은 list_companions의 ' +
+    'testValueKeys로 확인하고, 없으면 테스트 케이스에 적힌 이름을 따르거나 사용자에게 확인하세요.\n\n' +
+    '스크립트는 run_case_automation으로 실제 OTM Companion에서 실행하고, get_automation_run_status로 ' +
+    '결과(Pass/Fail, 로그, 아티팩트)를 가져올 수 있습니다. 지금 OTM Companion이 실행하는 것은 NODE_TS(.ts)이며, ' +
+    'JMeter와 Postman은 아직 실행하지 않습니다. 종류별 상세 작성 규칙과 예시는 ' +
     'get_automation_script_guide({ kind })로 조회하세요 — kind는 "NODE_TS", "JMETER", "POSTMAN" 중 하나입니다.',
 
   NODE_TS:
     '## NODE_TS (.ts) — Node.js / Playwright / Appium\n\n' +
-    '러너가 tsx로 직접 실행합니다. 종료 코드 0 = PASS, 그 외 = FAIL. console.log/console.error 출력이 ' +
+    'OTM Companion이 자체 Node 런타임으로 직접 실행합니다(타입 표기는 지워서 실행 — enum, namespace는 쓰지 마세요). ' +
+    '`import ... from \'playwright\'`는 컴패니언에 설치된 Playwright를 씁니다. 종료 코드 0 = PASS, 그 외 = FAIL. console.log/console.error 출력이 ' +
     '그대로 실행 로그에 남고, 스크립트가 실행 디렉터리에 남긴 파일(스크린샷 등)은 파일명과 무관하게 ' +
     '전부 자동으로 아티팩트 첨부됩니다.\n\n' +
     '**.ts는 확장자만으로 엔진을 구분할 수 없으므로, 스크립트 맨 첫 줄에 반드시 `// Engine: ' +
@@ -228,7 +228,7 @@ const SCRIPT_GUIDES = {
     "const context = await browser.newContext({ recordVideo: { dir: '.' } }); // 실패 시에도 영상 보존\n" +
     'const page = await context.newPage();\n\n' +
     'try {\n' +
-    '  // 주소·계정은 값 대신 변수로 (러너가 OTM_VAR_* 로 주입)\n' +
+    '  // 주소·계정은 값 대신 변수로 (OTM Companion이 OTM_VAR_* 로 주입)\n' +
     '  await page.goto(process.env.OTM_VAR_BASE_URL!);\n' +
     "  await page.fill('#username', process.env.OTM_VAR_ADMIN_USERNAME!);\n" +
     "  await page.fill('#password', process.env.OTM_VAR_ADMIN_PASSWORD!);\n" +
@@ -245,9 +245,8 @@ const SCRIPT_GUIDES = {
     '}\n' +
     '```\n\n' +
     '### Appium (모바일 앱, webdriverio)\n' +
-    'Appium 서버는 러너의 `appium` CLI가 설치되어 있으면 러너가 자동으로 함께 띄우지만(포트 4723), ' +
-    '연결할 실제 기기/에뮬레이터는 러너가 대신 준비해주지 않습니다 — 미리 연결되어 있어야 하고, ' +
-    'capabilities는 그 기기/앱에 맞게 채워야 합니다.\n' +
+    '**OTM Companion은 아직 Appium 스크립트를 실행하지 못합니다**(webdriverio가 포함되어 있지 않음). 형식만 참고하세요. ' +
+    'Appium 서버와 실제 기기/에뮬레이터는 미리 준비되어 있어야 하고, capabilities는 그 기기/앱에 맞게 채워야 합니다.\n' +
     '```ts\n' +
     "// Engine: Appium\n" +
     "import { remote } from 'webdriverio';\n\n" +
@@ -277,8 +276,8 @@ const SCRIPT_GUIDES = {
     '}\n' +
     '```\n\n' +
     '### OWASP ZAP (보안 baseline 스캔)\n' +
-    'ZAP 데몬은 러너의 ZAP CLI(`zap.sh`/`zap.bat`)가 설치되어 있으면 러너가 자동으로 함께 띄웁니다(기본 ' +
-    '포트 8090) — 별도 클라이언트 라이브러리 없이 순수 fetch로 REST API를 호출합니다. baseline 스캔(spider ' +
+    'ZAP 데몬은 실행할 PC에서 미리 띄워 두어야 합니다(기본 포트 8090, OTM Companion이 대신 띄우지 않음) — ' +
+    '별도 클라이언트 라이브러리 없이 순수 fetch로 REST API를 호출합니다. baseline 스캔(spider ' +
     '+ passive scan)만 다루며, 대상 서버에 부하를 주는 active scan은 포함하지 않습니다. **반드시 테스트 ' +
     '권한이 있는 대상만 스캔하세요** — 대상 URL은 케이스의 사전조건/입력값 등에 명시하고, 임의로 다른 ' +
     '서버를 스캔하지 마세요.\n' +
@@ -316,8 +315,8 @@ const SCRIPT_GUIDES = {
 
   JMETER:
     '## JMETER (.jmx) — 부하테스트\n\n' +
-    'JMeter가 이미 설치되어 PATH에 있는(또는 OTM_JMETER_BIN으로 지정된) 러너에서 `jmeter -n -t <파일>`로 ' +
-    '실행됩니다. **JMeter는 샘플러가 실패해도 프로세스 종료 코드가 0**이므로, Pass/Fail은 결과 파일의 각 ' +
+    '**OTM Companion은 아직 JMeter를 실행하지 못합니다.** 첨부와 보관은 되며, 실행 지원이 추가되면 ' +
+    '`jmeter -n -t <파일>`로 실행됩니다. **JMeter는 샘플러가 실패해도 프로세스 종료 코드가 0**이므로, Pass/Fail은 결과 파일의 각 ' +
     '샘플 success 값으로 판정합니다 — 반드시 판정 대상 요청에 **응답 어설션(Response Assertion)**이나 ' +
     '**기간 어설션(Duration Assertion)** 등을 넣어야 하나라도 실패 시 FAIL로 기록됩니다 (어설션이 없으면 ' +
     '요청이 뭘 반환하든 항상 PASS로 기록됨).\n\n' +
@@ -358,12 +357,13 @@ const SCRIPT_GUIDES = {
     '</hashTree></jmeterTestPlan>\n' +
     '```\n' +
     '대상 호스트·계정·토큰은 값 대신 `${__P(BASE_HOST)}`, `${__P(ADMIN_PASSWORD)}`처럼 속성으로 참조하세요 — ' +
-    '러너가 변수를 JMeter 속성으로 넘겨줍니다. 기본값이 있는 `${__P(KEY,기본값)}`은 값이 없어도 실행됩니다.\n\n' +
+    '실행하는 쪽이 변수를 JMeter 속성으로 넘겨줍니다. 기본값이 있는 `${__P(KEY,기본값)}`은 값이 없어도 실행됩니다.\n\n' +
     '실행 결과에는 `.jtl`(원본 결과)과 JMeter 자체 로그가 아티팩트로 자동 첨부됩니다.',
 
   POSTMAN:
     '## POSTMAN (.json) — Postman 컬렉션 (Newman으로 실행)\n\n' +
-    'Postman에서 Export한 컬렉션 JSON(v2.1 권장)을 그대로 첨부하면, 러너가 `newman run`으로 실행합니다. ' +
+    '**OTM Companion은 아직 Postman 컬렉션을 실행하지 못합니다.** 첨부와 보관은 되며, 실행 지원이 추가되면 ' +
+    'Export한 컬렉션 JSON(v2.1 권장)을 `newman run`으로 실행합니다. ' +
     '**Newman은 (JMeter와 달리) 어설션/요청이 실패하면 스스로 종료 코드 1을 반환**하므로 그대로 Pass/Fail로 ' +
     '판정됩니다. **컬렉션의 각 요청에 Tests 스크립트(event.listen="test")로 검증 로직이 있어야 의미 있게 ' +
     'Pass/Fail이 갈립니다** — 요청만 있고 테스트 스크립트가 없으면 응답 내용과 무관하게 항상 PASS로 ' +
@@ -388,7 +388,7 @@ const SCRIPT_GUIDES = {
     '}\n' +
     '```\n\n' +
     '주소·계정·토큰은 요청에 값으로 적지 말고 `{{BASE_URL}}`, `{{ADMIN_PASSWORD}}`처럼 변수로 두세요 — ' +
-    '러너가 변수를 Newman 환경(environment)으로 넘겨주며, 환경 값은 컬렉션 변수보다 우선합니다. 실행 로그에는 Newman CLI 출력(요청별 결과, 실패한 ' +
+    '실행하는 쪽이 변수를 Newman 환경(environment)으로 넘겨주며, 환경 값은 컬렉션 변수보다 우선합니다. 실행 로그에는 Newman CLI 출력(요청별 결과, 실패한 ' +
     '어설션의 기대/실제 값)이 그대로 남고, JSON 리포트(통계·실패 상세·타이밍 — 응답 본문 원본은 용량 ' +
     '문제로 제외)도 아티팩트로 첨부됩니다.',
 };
@@ -626,7 +626,7 @@ server.registerTool(
     title: '테스트 케이스에 자동화 스크립트 첨부',
     description:
       '이 프로젝트의 테스트 케이스에 자동화 스크립트를 첨부하거나 교체합니다. ' +
-      '파일명 확장자로 종류가 자동 판별되며, 셋 다 실행 탭에서 러너로 바로 자동 실행할 수 있습니다: ' +
+      '파일명 확장자로 종류가 자동 판별됩니다(.ts는 실행 탭에서 OTM Companion으로 바로 자동 실행): ' +
       '.ts(Node.js/Playwright/Appium), .jmx(JMeter 부하테스트), .json(Postman 컬렉션 export). ' +
       '실제 저장되는 파일명은 fileName으로 전달한 이름을 그대로 쓰지 않고, 케이스 ID와 제목 기반으로 ' +
       '서버가 자동 생성합니다(예: STA-TC-00012_로그인_실패_처리.ts) — fileName은 확장자로 종류를 판별하는 용도입니다. ' +
@@ -823,38 +823,38 @@ server.registerTool(
 server.registerTool(
   'run_case_automation',
   {
-    title: '러너로 자동 실행',
+    title: 'OTM Companion으로 자동 실행',
     description:
-      '이 케이스에 첨부된 자동화 스크립트를 프로젝트에 연결된 실제 러너에서 실행합니다. ' +
-      'record_result로 직접 결과를 기록하는 대신, 실제 러너가 스크립트를 구동한 결과(Pass/Fail)를 그대로 반영합니다. ' +
-      '러너별 동시 실행 제한(테스터 관리에서 설정)에 걸리면 자리가 날 때까지 대기열에서 기다렸다가 자동으로 ' +
+      '이 케이스에 첨부된 자동화 스크립트를 실제 OTM Companion(사람 PC에서 도는 실행 프로그램)에서 실행합니다. ' +
+      'record_result로 직접 결과를 기록하는 대신, 컴패니언이 스크립트를 구동한 결과(Pass/Fail)를 그대로 반영합니다. ' +
+      '컴패니언별 동시 실행 제한에 걸리면 자리가 날 때까지 대기열에서 기다렸다가 자동으로 ' +
       '실행되며, 이 도구는 그 대기까지 포함해서 기다립니다. 실행이 오래 걸려 시간 내 끝나지 않으면 ' +
       'status: "IN_PROGRESS"와 runId를 반환하니, get_automation_run_status로 다시 확인하세요. ' +
       '이 호출은 매번 새로운 실행(run)을 생성하며, 반환되는 runId는 이번 실행 전용입니다. 같은 케이스에 ' +
       '대한 이전 runId는 이 호출 이후 더 이상 최신 상태를 반영하지 않으니 폐기하고, 이후로는 이번에 받은 ' +
-      '새 runId로만 상태를 조회하세요. ' +
-      'JMeter(.jmx)나 Postman/Newman(.json) 스크립트도 ' +
-      '실행 가능합니다 — 각각 샘플러/요청·어설션 성공 여부로 Pass/Fail이 판정됩니다. 응답에 포함된 ' +
+      '새 runId로만 상태를 조회하세요. 스크립트가 쓰는 테스트 값(OTM_VAR_*)이 그 컴패니언에 없으면 ' +
+      '실행하지 않고 어떤 키가 없는지 알려줍니다. 응답에 포함된 ' +
       'cycleCaseId/roundId는 바로 이 실행이 속한 세션의 케이스/회차이므로, FAIL을 결함으로 등록할 때 ' +
       'create_bug에 다른 도구로 다시 찾지 말고 그대로 넘기세요.',
     inputSchema: {
       sessionId: z.string(),
       roundId: z.string(),
       resultId: z.string(),
-      runnerId: z
+      companionId: z
         .string()
         .optional()
         .describe(
-          'list_runners로 조회한 러너 id를 지정하면 그 러너로 강제 실행합니다(오프라인이면 실패). ' +
-            '생략하면 케이스 담당자의 러너, 그마저 없으면 온라인 러너 중 자동 선택됩니다.'
+          'list_companions로 조회한 컴패니언 id를 지정하면 그 컴패니언으로 실행합니다(연결되어 있지 않으면 실패). ' +
+            '생략하면 케이스에 고정된 컴패니언, 없으면 이 키 소유자의 연결된 컴패니언이 쓰입니다.'
         ),
+      runnerId: z.string().optional().describe('companionId의 예전 이름. 새 호출에는 companionId를 쓰세요.'),
     },
   },
-  async ({ sessionId, roundId, resultId, runnerId }) =>
+  async ({ sessionId, roundId, resultId, companionId, runnerId }) =>
     textResult(
       await callApi(`/sessions/${sessionId}/rounds/${roundId}/results/${resultId}/run-automation`, {
         method: 'POST',
-        body: JSON.stringify({ runnerId }),
+        body: JSON.stringify({ companionId: companionId ?? runnerId }),
       })
     )
 );
@@ -1044,82 +1044,23 @@ server.registerTool(
     )
 );
 
-server.registerTool(
-  'list_runners',
-  {
-    title: '연결된 러너 조회',
-    description:
-      '이 프로젝트에 배정된 러너(자동화 실행 에이전트)와 온라인 여부, 실행 가능한 스크립트 종류 ' +
-      '(capabilities: NODE_TS/JMETER/POSTMAN/APPIUM/OWASP_ZAP), 동시 실행 제한(maxConcurrency)을 ' +
-      '조회합니다. run_case_automation 호출 전 실행 가능한 러너가 있는지, 이미 다른 실행으로 자리가 ' +
-      '찼을 수 있는지 미리 확인할 때 씁니다. runnerFileVariableKeys는 그 러너 PC의 설정 파일이 이 프로젝트에 ' +
-      '대해 직접 지정한(프로젝트 변수보다 우선하는) 변수 키 이름입니다 — 값은 포함되지 않으며, 러너가 마지막으로 ' +
-      '연결/재확인한 시점 기준입니다. 스크립트가 참조하는 변수가 프로젝트 변수에도 여기에도 없으면 그 러너에서는 ' +
-      '실행되지 않습니다.',
-    inputSchema: {},
-  },
-  async () => textResult(await callApi('/runners'))
+const LIST_COMPANIONS = {
+  description:
+    '이 프로젝트를 실행할 수 있는 OTM Companion(사람들 PC에서 도는 실행 프로그램)과 연결 여부, 실행 가능한 ' +
+    '스크립트 종류(capabilities), 동시 실행 제한(maxConcurrency), 이 프로젝트에 대해 그 컴패니언에 값이 들어 있는 ' +
+    '테스트 값 키(testValueKeys — 키 이름만, 값은 없음)를 조회합니다. mine은 이 키 소유자의 컴패니언입니다. ' +
+    'run_case_automation 호출 전 실행 가능한 컴패니언이 있는지, 스크립트가 쓰는 OTM_VAR_* 키가 있는지 미리 ' +
+    '확인할 때 씁니다.',
+  inputSchema: {},
+};
+
+server.registerTool('list_companions', { title: 'OTM Companion 조회', ...LIST_COMPANIONS }, async () =>
+  textResult(await callApi('/companions'))
 );
 
-server.registerTool(
-  'list_project_variables',
-  {
-    title: '자동화 변수 조회',
-    description:
-      '자동화 스크립트가 값 대신 이름으로 참조하는 프로젝트 변수(대상 주소, 로그인 계정, 토큰 등) 목록을 ' +
-      '조회합니다. 비밀 변수(secret=true)는 값이 반환되지 않고 존재 여부만 알 수 있습니다. 스크립트를 작성할 ' +
-      '때 어떤 키를 쓸 수 있는지 확인하는 용도이며, 스크립트에는 값이 아니라 키 이름으로만 참조하세요 ' +
-      '(get_automation_script_guide 참고). 러너 PC의 설정 파일이 같은 키를 덮어쓸 수 있습니다(list_runners 참고).',
-    inputSchema: {},
-  },
-  async () => textResult(await callApi('/variables'))
-);
-
-server.registerTool(
-  'set_project_variables',
-  {
-    title: '자동화 변수 등록/수정',
-    description:
-      '프로젝트 변수를 한 번에 등록하거나 수정합니다. 이 프로젝트를 실행하는 모든 러너가 받는 공용 값입니다. ' +
-      '전부 검사한 뒤 한꺼번에 저장하므로 하나라도 규칙에 어긋나면 아무것도 저장되지 않습니다. 기존 변수에서 ' +
-      'value를 생략하거나 빈 문자열로 주면 저장된 값은 그대로 두고 설명/비밀 여부만 바꿉니다. 비밀 변수를 일반 ' +
-      '변수로 바꿀 때는 value를 다시 주어야 합니다. 사용자가 명시적으로 알려준 값만 등록하고, 값을 추측하거나 ' +
-      '만들어내지 마세요.',
-    inputSchema: {
-      variables: z
-        .array(
-          z.object({
-            key: z.string().describe('영문 대문자로 시작, 대문자·숫자·_ 만. 예: BASE_URL, ADMIN_USERNAME, ADMIN_PASSWORD'),
-            value: z.string().nullable().optional().describe('값. 기존 변수에서 생략/빈 문자열이면 기존 값 유지'),
-            secret: z
-              .boolean()
-              .optional()
-              .describe('비밀 여부. 새 변수의 기본값은 true. URL처럼 로그에 보여도 되는 값만 false'),
-            description: z.string().nullable().optional().describe('설명 (예: 관리자 테스트 계정)'),
-          })
-        )
-        .min(1)
-        .describe('등록/수정할 변수 목록'),
-    },
-  },
-  async ({ variables }) => textResult(await callApi('/variables', { method: 'PUT', body: JSON.stringify({ variables }) }))
-);
-
-server.registerTool(
-  'delete_project_variable',
-  {
-    title: '자동화 변수 삭제',
-    description:
-      '프로젝트 변수를 삭제합니다. 이 변수를 참조하는 스크립트는 러너 설정 파일에 같은 키가 없으면 더 이상 ' +
-      '실행되지 않습니다.',
-    inputSchema: {
-      key: z.string().describe('삭제할 변수 키'),
-    },
-  },
-  async ({ key }) => {
-    await callApi(`/variables/${encodeURIComponent(key)}`, { method: 'DELETE' });
-    return textResult({ deleted: key });
-  }
+// The name clients from before OTM Companion call (QA Copilot's studio among them).
+server.registerTool('list_runners', { title: 'OTM Companion 조회 (예전 이름: list_companions를 쓰세요)', ...LIST_COMPANIONS }, async () =>
+  textResult(await callApi('/companions'))
 );
 
 server.registerTool(

@@ -248,7 +248,11 @@ const SCRIPT_GUIDES = {
     '### Appium (모바일 앱, webdriverio)\n' +
     'Appium을 설치한 OTM Companion이 실행합니다: `import ... from \'webdriverio\'`가 있는 스크립트면 컴패니언이 Appium ' +
     '서버(UiAutomator2 드라이버 포함)를 먼저 띄우고, 주소는 OTM_APPIUM_HOST/OTM_APPIUM_PORT 환경변수로 줍니다. ' +
-    'Android 기기나 에뮬레이터는 그 PC에 연결되어(adb devices에 보여야) 있어야 하고, capabilities는 그 기기/앱에 맞게 채워야 합니다.\n' +
+    'Android 기기나 에뮬레이터는 그 PC에 연결되어(adb devices에 보여야) 있어야 하고, capabilities는 그 기기/앱에 맞게 채워야 합니다. ' +
+    '**capabilities에 `\'wdio:enforceWebDriverClassic\': true`를 반드시 넣으세요** — webdriverio 9는 기본으로 WebDriver BiDi를 쓰는데 ' +
+    'Appium UiAutomator2는 이를 지원하지 않아 driver.url() 등이 "Method has not yet been implemented"로 실패합니다. ' +
+    '앱 대신 기기의 Chrome을 테스트하려면 appPackage/appActivity 대신 `browserName: \'Chrome\'`을 쓰고 driver.url()로 이동합니다' +
+    '(기기 Chrome에 맞는 chromedriver는 OTM Companion 0.6.4 이상이 자동으로 받습니다).\n' +
     '```ts\n' +
     "// Engine: Appium\n" +
     "import { remote } from 'webdriverio';\n\n" +
@@ -261,6 +265,7 @@ const SCRIPT_GUIDES = {
     "    'appium:deviceName': 'emulator-5554',\n" +
     "    'appium:appPackage': 'com.example.app',\n" +
     "    'appium:appActivity': '.MainActivity',\n" +
+    "    'wdio:enforceWebDriverClassic': true, // UiAutomator2는 WebDriver BiDi를 지원하지 않음\n" +
     '  },\n' +
     '});\n\n' +
     'try {\n' +

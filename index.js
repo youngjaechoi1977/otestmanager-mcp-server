@@ -185,9 +185,10 @@ const SCRIPT_GUIDES = {
     '자동화 스크립트는 파일명 확장자로 종류가 자동 판별됩니다 (attach_automation_script 호출 시 별도 kind 지정 불필요):\n' +
     '- .ts → NODE_TS: 순수 Node.js, Playwright(브라우저), Appium(모바일, webdriverio), OWASP ZAP(보안 스캔) 스크립트 모두 이 확장자.\n' +
     '- .jmx → JMETER: JMeter 부하테스트 (JMeter GUI/CLI로 만든 테스트 플랜 XML).\n' +
-    '- .json → POSTMAN: Postman 컬렉션 export (v2.1 권장).\n\n' +
+    '- .json → POSTMAN: Postman 컬렉션 export (v2.1 권장).\n' +
+    '- .py → PYTHON: Python 스크립트 — Selenium(웹), Appium Python 클라이언트(모바일), requests(API).\n\n' +
     '**모든 스크립트는 맨 위에 실제 사용하는 자동화 엔진(Playwright / Appium / OWASP ZAP / 순수 Node.js / ' +
-    'JMeter / Postman)을 명시하는 표시를 남겨야 합니다** — 특히 .ts는 확장자만으로는 Playwright인지 ' +
+    'JMeter / Postman / Selenium(Python))을 명시하는 표시를 남겨야 합니다** — 특히 .ts는 확장자만으로는 Playwright인지 ' +
     'Appium인지 ZAP인지 순수 Node.js인지 구분이 안 되므로 필수입니다. 형식은 종류별 가이드 참고 ' +
     '(get_automation_script_guide({ kind })).\n\n' +
     '**대상 사이트의 주소·로그인 계정·API 토큰은 절대 스크립트에 값으로 적지 마세요.** 변수 이름으로만 ' +
@@ -201,7 +202,7 @@ const SCRIPT_GUIDES = {
     '결과(Pass/Fail, 로그, 아티팩트)를 가져올 수 있습니다. NODE_TS는 모든 OTM Companion이 실행하고, ' +
     'JMeter·Postman·Appium·OWASP ZAP은 그 도구를 설치한 컴패니언만 실행합니다(list_companions의 capabilities로 ' +
     '확인; 없는 컴패니언에는 실행을 보내지 않습니다). 종류별 상세 작성 규칙과 예시는 ' +
-    'get_automation_script_guide({ kind })로 조회하세요 — kind는 "NODE_TS", "JMETER", "POSTMAN" 중 하나입니다.',
+    'get_automation_script_guide({ kind })로 조회하세요 — kind는 "NODE_TS", "JMETER", "POSTMAN", "PYTHON" 중 하나입니다.',
 
   NODE_TS:
     '## NODE_TS (.ts) — Node.js / Playwright / Appium\n\n' +
@@ -366,7 +367,9 @@ const SCRIPT_GUIDES = {
     '```\n' +
     '대상 호스트·계정·토큰은 값 대신 `${__P(BASE_HOST)}`, `${__P(ADMIN_PASSWORD)}`처럼 속성으로 참조하세요 — ' +
     '실행하는 쪽이 변수를 JMeter 속성으로 넘겨줍니다. 기본값이 있는 `${__P(KEY,기본값)}`은 값이 없어도 실행됩니다.\n\n' +
-    '실행 결과에는 `.jtl`(원본 결과)과 JMeter 자체 로그가 아티팩트로 자동 첨부됩니다.',
+    '실행 결과에는 결과 요약(results-summary.json: 전체·라벨별 샘플 수, 실패 수, 응답시간 avg/p95/max, 실패 응답코드), ' +
+    '실패한 샘플만 모은 failed-samples.csv, JMeter 자체 로그(jmeter.log)가 아티팩트로 자동 첨부됩니다(원본 .jtl은 용량 때문에 첨부하지 않음). ' +
+    '샘플이 하나라도 실패하면 FAIL입니다.',
 
   POSTMAN:
     '## POSTMAN (.json) — Postman 컬렉션 (Newman으로 실행)\n\n' +
@@ -398,6 +401,47 @@ const SCRIPT_GUIDES = {
     '실행하는 쪽이 변수를 Newman 환경(environment)으로 넘겨주며, 환경 값은 컬렉션 변수보다 우선합니다. 실행 로그에는 Newman CLI 출력(요청별 결과, 실패한 ' +
     '어설션의 기대/실제 값)이 그대로 남고, JSON 리포트(통계·실패 상세·타이밍 — 응답 본문 원본은 용량 ' +
     '문제로 제외)도 아티팩트로 첨부됩니다.',
+
+  PYTHON:
+    '## PYTHON (.py) — Python / Selenium / Appium Python 클라이언트\n\n' +
+    'Python (Selenium)을 설치한 OTM Companion(0.7.0 이상)이 `python 스크립트.py`로 실행합니다(Python 3.12). ' +
+    '종료 코드 0 = PASS, 그 외(잡히지 않은 예외 포함) = FAIL. print 출력이 그대로 실행 로그가 됩니다.\n\n' +
+    '- 쓸 수 있는 패키지는 **selenium, Appium-Python-Client(`from appium import webdriver`), requests** 뿐입니다(pytest 등 다른 패키지 없음, pip 설치 불가). ' +
+    '테스트 러너 없이 순수 스크립트로 쓰고, 검증은 assert나 예외로 합니다.\n' +
+    '- 브라우저 드라이버(chromedriver 등)는 Selenium Manager가 자동으로 받습니다 — 드라이버 경로를 지정하지 마세요.\n' +
+    '- 값은 `os.environ["OTM_VAR_<키>"]`로 읽습니다(키는 대소문자 구별). `os.environ.get("OTM_VAR_X", "기본값")`처럼 기본값이 있으면 값이 없어도 실행됩니다.\n' +
+    '- `os.environ.get("OTM_HEADLESS") == "true"`이면 `--headless=new`로 띄우세요(실행 탭의 브라우저 표시 옵션).\n' +
+    '- 작업 폴더에 쓴 파일은 자동으로 아티팩트가 됩니다: 실패 시 `driver.save_screenshot("failure.png")`.\n' +
+    '- `from appium import webdriver`를 쓰면 Appium이 설치된 컴패니언에서만 실행되고, 컴패니언이 Appium 서버를 먼저 띄워 ' +
+    '`OTM_APPIUM_HOST`/`OTM_APPIUM_PORT`로 알려줍니다.\n' +
+    '- 첫 줄에 `# Engine: Selenium (Python)` 또는 `# Engine: Appium (Python)` 주석을 남기세요.\n\n' +
+    '```python\n' +
+    '# Engine: Selenium (Python)\n' +
+    'import os\n' +
+    'from selenium import webdriver\n' +
+    'from selenium.webdriver.chrome.options import Options\n' +
+    'from selenium.webdriver.common.by import By\n' +
+    'from selenium.webdriver.support.ui import WebDriverWait\n' +
+    'from selenium.webdriver.support import expected_conditions as EC\n\n' +
+    'BASE_URL = os.environ["OTM_VAR_BASE_URL"]\n\n' +
+    'options = Options()\n' +
+    'if os.environ.get("OTM_HEADLESS", "true") == "true":\n' +
+    '    options.add_argument("--headless=new")\n' +
+    'driver = webdriver.Chrome(options=options)\n' +
+    'try:\n' +
+    '    driver.get(BASE_URL + "/login")\n' +
+    '    driver.find_element(By.NAME, "username").send_keys(os.environ["OTM_VAR_ADMIN_USERNAME"])\n' +
+    '    driver.find_element(By.NAME, "password").send_keys(os.environ["OTM_VAR_ADMIN_PASSWORD"])\n' +
+    '    driver.find_element(By.CSS_SELECTOR, "button[type=submit]").click()\n' +
+    '    WebDriverWait(driver, 10).until(EC.url_contains("/dashboard"))\n' +
+    '    print("PASS: 로그인 후 대시보드로 정상 이동했습니다.")\n' +
+    'except Exception as err:\n' +
+    '    driver.save_screenshot("failure.png")  # 자동으로 아티팩트 첨부됨\n' +
+    '    print("FAIL:", err)\n' +
+    '    raise\n' +
+    'finally:\n' +
+    '    driver.quit()\n' +
+    '```',
 };
 
 server.registerTool(
@@ -543,7 +587,7 @@ server.registerTool(
     description:
       '이 API 키에 연결된 프로젝트의 테스트 케이스 목록을 가져옵니다. 각 케이스의 ' +
       'automationFileName/automationScript/automationScriptKind로 이미 자동화 스크립트가 첨부되어 ' +
-      '있는지, 어떤 종류(NODE_TS/JMETER/POSTMAN)인지 확인할 수 있습니다. folderId로 list_folders가 ' +
+      '있는지, 어떤 종류(NODE_TS/JMETER/POSTMAN/PYTHON)인지 확인할 수 있습니다. folderId로 list_folders가 ' +
       '반환하는 폴더 트리 어디에 속하는지 알 수 있습니다(null이면 폴더 없음). 필터를 하나도 넘기지 않으면 ' +
       '전체 목록을 반환합니다.',
     inputSchema: {
@@ -551,7 +595,7 @@ server.registerTool(
       // instead of omitting the key, which .optional() alone rejects as a validation error.
       q: z.string().nullish().describe('ID/제목/목적/입력값/기대결과에 포함된 검색어 (대소문자 무시)'),
       priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).nullish(),
-      automationScriptKind: z.enum(['NODE_TS', 'JMETER', 'POSTMAN']).nullish().describe('첨부된 자동화 스크립트 종류로 필터링'),
+      automationScriptKind: z.enum(['NODE_TS', 'JMETER', 'POSTMAN', 'PYTHON']).nullish().describe('첨부된 자동화 스크립트 종류로 필터링'),
       hasAutomation: z.boolean().nullish().describe('true면 자동화 스크립트가 첨부된 케이스만, false면 없는 케이스만'),
     },
   },
@@ -634,11 +678,11 @@ server.registerTool(
     description:
       '이 프로젝트의 테스트 케이스에 자동화 스크립트를 첨부하거나 교체합니다. ' +
       '파일명 확장자로 종류가 자동 판별됩니다(.ts는 실행 탭에서 OTM Companion으로 바로 자동 실행): ' +
-      '.ts(Node.js/Playwright/Appium), .jmx(JMeter 부하테스트), .json(Postman 컬렉션 export). ' +
+      '.ts(Node.js/Playwright/Appium), .jmx(JMeter 부하테스트), .json(Postman 컬렉션 export), .py(Python/Selenium). ' +
       '실제 저장되는 파일명은 fileName으로 전달한 이름을 그대로 쓰지 않고, 케이스 ID와 제목 기반으로 ' +
       '서버가 자동 생성합니다(예: STA-TC-00012_로그인_실패_처리.ts) — fileName은 확장자로 종류를 판별하는 용도입니다. ' +
-      'content 맨 앞에는 실제 사용하는 엔진(Playwright/Appium/OWASP ZAP/Node.js/JMeter/Postman)을 표시하는 ' +
-      '주석(.ts/.jmx) 또는 info.description(.json)을 반드시 넣으세요 — 형식은 get_automation_script_guide 참고. ' +
+      'content 맨 앞에는 실제 사용하는 엔진(Playwright/Appium/OWASP ZAP/Node.js/JMeter/Postman/Selenium)을 표시하는 ' +
+      '주석(.ts/.jmx/.py) 또는 info.description(.json)을 반드시 넣으세요 — 형식은 get_automation_script_guide 참고. ' +
       '스크립트를 작성하면서 케이스에 원래 없던 동작을 추가로 구현했다면(예: 추가 검증, 엣지 케이스 처리), ' +
       'steps도 함께 전달해 텍스트 스텝과 실제 스크립트 동작이 어긋나지 않게 하세요 — steps를 생략하면 ' +
       '기존 스텝은 그대로 유지되므로, 스크립트가 스텝 그대로만 구현했을 때만 생략하면 됩니다.',
@@ -909,7 +953,7 @@ server.registerTool(
       'attach_automation_script로 첨부할 스크립트를 작성하기 전에 호출하세요. 각 종류(kind)별 파일 형식, ' +
       '작성 규칙, 실제 동작하는 예시 스크립트를 반환합니다. kind를 생략하면 전체 개요를 반환합니다.',
     inputSchema: {
-      kind: z.enum(['NODE_TS', 'JMETER', 'POSTMAN']).optional().describe('가이드를 볼 스크립트 종류 (생략 시 전체 개요)'),
+      kind: z.enum(['NODE_TS', 'JMETER', 'POSTMAN', 'PYTHON']).optional().describe('가이드를 볼 스크립트 종류 (생략 시 전체 개요)'),
     },
   },
   async ({ kind }) => textResult(kind ? SCRIPT_GUIDES[kind] : SCRIPT_GUIDES.OVERVIEW)

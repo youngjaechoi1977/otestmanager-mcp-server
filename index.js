@@ -896,7 +896,9 @@ server.registerTool(
         .optional()
         .describe(
           'list_companions로 조회한 컴패니언 id를 지정하면 그 컴패니언으로 실행합니다(연결되어 있지 않으면 실패). ' +
-            '생략하면 케이스에 고정된 컴패니언, 없으면 이 키 소유자의 연결된 컴패니언이 쓰입니다.'
+            '생략하면 케이스에 고정된 컴패니언, 없으면 이 키 소유자의 연결된 컴패니언이 쓰입니다. 컴패니언은 그 주인만 ' +
+            '실행할 수 있어서, 다른 사람의 컴패니언이나 다른 사람의 컴패니언에 고정된 케이스는 실행이 거부되고, ' +
+            '프로젝트 API 키로는 실행할 수 없습니다(계정 API 키 사용).'
         ),
       runnerId: z.string().optional().describe('companionId의 예전 이름. 새 호출에는 companionId를 쓰세요.'),
     },
@@ -1097,9 +1099,10 @@ server.registerTool(
 
 const LIST_COMPANIONS = {
   description:
-    '이 프로젝트를 실행할 수 있는 OTM Companion(사람들 PC에서 도는 실행 프로그램)과 연결 여부, 실행 가능한 ' +
+    '이 키 소유자의 OTM Companion 중 이 프로젝트를 실행할 수 있는 것(내 PC에서 도는 실행 프로그램)과 연결 여부, 실행 가능한 ' +
     '스크립트 종류(capabilities), 동시 실행 제한(maxConcurrency), 이 프로젝트에 대해 그 컴패니언에 값이 들어 있는 ' +
-    '테스트 값 키(testValueKeys — 키 이름만, 값은 없음)를 조회합니다. mine은 이 키 소유자의 컴패니언입니다. ' +
+    '테스트 값 키(testValueKeys — 키 이름만, 값은 없음)를 조회합니다. 컴패니언은 그 주인만 실행할 수 있으므로 ' +
+    '다른 사람의 컴패니언은 나오지 않고, 프로젝트 API 키로는 빈 목록입니다. ' +
     'run_case_automation 호출 전 실행 가능한 컴패니언이 있는지, 스크립트가 쓰는 OTM_VAR_* 키가 있는지 미리 ' +
     '확인할 때 씁니다.',
   inputSchema: {},

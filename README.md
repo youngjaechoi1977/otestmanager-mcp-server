@@ -58,7 +58,7 @@ npm install
 
 ### 읽기 전용 키
 
-발급할 때 **읽기 전용**을 고르면 MCP 서버가 조회 툴만 등록합니다(쓰기 툴 20개는 나타나지 않습니다).
+발급할 때 **읽기 전용**을 고르면 MCP 서버가 조회 툴만 등록합니다(쓰기 툴 18개는 나타나지 않습니다).
 서버도 GET 외의 요청을 거절합니다.
 
 ### 이전 방식의 프로젝트 키
@@ -103,29 +103,31 @@ curl -H "X-Api-Key: otm_u_xxx" https://<서버>/api/v1/projects/<ID 또는 코�
 | `list_test_cases` | 프로젝트의 테스트 케이스 목록 / `q`(키워드), `priority`, `automationScriptKind`, `hasAutomation`으로 검색·필터링. 각 케이스는 `folderId`를 포함 |
 | `create_test_case` | 새 테스트 케이스를 이 프로젝트에 생성. `category`를 지정하면 이 프로젝트의 폴더 트리에서 그 이름의 하위 폴더에 담김(같은 이름 재사용 시 같은 폴더로 모임, 없으면 자동 생성) — 생략하면 최상위에 바로 담김. `requirementIds`를 지정하면 생성과 동시에 해당 요구사항(들)과 매칭됨(프로젝트 레벨). ID는 `<프로젝트코드>-TC-00001` 형식(5자리)으로 자동 채번 |
 | `get_test_case` | 테스트 케이스 하나의 전체 상세 조회 (첨부된 자동화 스크립트 원문 포함) |
-| `update_test_case` | 테스트 케이스의 제목/목적/사전조건/입력값/기대결과/우선순위/스텝 수정 (전달한 필드만 변경) |
-| `get_automation_script_guide` | 스크립트 작성 전 참고할 가이드 — kind별(NODE_TS/JMETER/POSTMAN) 작성 규칙 + 실제 동작하는 예시 스크립트 |
-| `attach_automation_script` | 테스트 케이스에 자동화 스크립트 첨부/교체(=수정) — 파일 확장자로 종류 자동 판별 (.ts: Node.js/Playwright/Appium/OWASP ZAP, .jmx: JMeter, .json: Postman/Newman — 지금 OTM Companion이 실행하는 것은 .ts). 실제 저장 파일명은 전달한 fileName을 그대로 쓰지 않고 케이스 ID·제목 기반으로 서버가 재생성함(fileName은 확장자 판별 용도). content 맨 앞에 실제 엔진(Playwright/Appium/OWASP ZAP/Node.js/JMeter/Postman)을 표시하는 주석(.ts/.jmx) 또는 info.description(.json)을 반드시 포함해야 함. 이전 스크립트는 버전 이력으로 보관 |
+| `update_test_case` | 테스트 케이스의 제목/목적/사전조건/입력값/기대결과/우선순위/스텝 수정 (전달한 필드만 변경, 수정 전 내용은 버전 이력으로 보존) |
+| `get_automation_script_guide` | 스크립트 작성 전 참고할 가이드 — kind별(NODE_TS/JMETER/POSTMAN/PYTHON) 작성 규칙 + 실제 동작하는 예시 스크립트 |
+| `attach_automation_script` | 테스트 케이스에 자동화 스크립트 첨부/교체(=수정) — 파일 확장자로 종류 자동 판별 (.ts: Node.js/Playwright/Appium/OWASP ZAP, .jmx: JMeter, .json: Postman/Newman, .py: Python/Selenium — 모두 OTM Companion이 실행하며, 그 도구를 설치한 컴패니언에만 보냄). 실제 저장 파일명은 전달한 fileName을 그대로 쓰지 않고 케이스 ID·제목 기반으로 서버가 재생성함(fileName은 확장자 판별 용도). content 맨 앞에 실제 엔진(Playwright/Appium/OWASP ZAP/Node.js/JMeter/Postman/Selenium)을 표시하는 주석(.ts/.jmx/.py) 또는 info.description(.json)을 반드시 포함해야 함. 이전 스크립트는 버전 이력으로 보관. `steps`를 함께 넘기면 케이스의 텍스트 스텝도 갱신(이때 케이스 버전 이력도 남음) |
 | `remove_automation_script` | 테스트 케이스의 자동화 스크립트 제거 (마찬가지로 버전 이력에 보관) |
 | `list_automation_script_versions` | 자동화 스크립트 이전 버전 이력 조회 |
 | `list_sessions` | 세션(실행 사이클) 목록 |
 | `create_session` | 새 세션 생성 (프로젝트의 모든 테스트 케이스 자동 포함, 기본 "실행" 회차 생성) |
 | `list_session_cases` | 세션에 포함된 케이스 목록 |
-| `add_case_to_session` | 이미 존재하는 세션에 케이스 추가 (create_session은 호출 시점에 존재하던 케이스만 포함하므로, 나중에 만든 케이스는 이걸로 추가) |
+| `add_case_to_session` | 이미 존재하는 세션에 케이스 추가 (create_session은 호출 시점에 존재하던 케이스만 포함하므로, 나중에 만든 케이스는 이걸로 추가). 케이스 ID 또는 코드, 이미 들어 있으면 그대로 돌려줌(`alreadyInSession`) |
 | `get_case_requirements` | 세션 케이스가 현재 검증하는 요구사항 목록 조회 |
-| `update_case_requirements` | 테스트 케이스가 검증하는 요구사항 지정 (프로젝트 레벨 요구사항 커버리지, 호출마다 전체 교체) |
+| `update_case_requirements` | 테스트 케이스가 검증하는 요구사항 지정 (프로젝트 레벨 요구사항 커버리지, 호출마다 전체 교체). 요구사항은 ID나 코드로, 같은 것이 겹쳐도 한 번으로 셈 |
 | `list_rounds` | 세션의 실행 회차 목록 |
 | `get_round_results` | 실행 회차의 케이스별 결과 전체 목록 |
 | `get_round_test_case_result` | 실행 회차의 결과 하나만 조회 (resultId를 이미 알고 있을 때, 전체 목록 재조회 없이) |
-| `record_result` | 실행 결과 직접 기록 (Pass/Fail/Blocked/N/A) — 자동화 스크립트가 없는 케이스나 수동 판단 결과용 |
-| `run_case_automation` | 케이스에 첨부된 자동화 스크립트를 실제 OTM Companion에서 실행하고 결과를 반영 (`companionId`로 지정 가능) |
+| `record_result` | 실행 결과 직접 기록 (Pass/Fail/Blocked/N/A) — 자동화 스크립트가 없는 케이스나 수동 판단 결과용. `comment`를 생략하면 기존 코멘트 유지, null이면 지움 |
+| `run_case_automation` | 케이스에 첨부된 자동화 스크립트를 실제 OTM Companion에서 실행하고 결과를 반영 (`companionId`로 지정 가능). 컴패니언이 5분 안에 시작을 알리지 않거나, 스크립트 제한 시간에 10분을 더해도 결과가 없거나, 연결되지 않은 컴패니언을 24시간 기다리면 서버가 오류로 정리 |
 | `get_automation_run_status` | `run_case_automation`이 시간 내 끝나지 않았을 때 최종 결과(로그, 아티팩트 목록 포함) 재확인 |
 | `get_automation_run_artifact` | 실행 결과의 첨부 파일(스크린샷/영상/.jtl 등)을 base64로 가져오기 (최대 10MB) |
 | `list_companions` | 이 프로젝트를 실행할 수 있는 OTM Companion의 연결 여부·실행 가능한 스크립트 종류(capabilities)·이 프로젝트용 테스트 값 키(`testValueKeys`, 값 없음) 조회 — `run_case_automation` 호출 전 미리 확인용. 예전 이름 `list_runners`도 같은 동작 |
 | `create_bug` | 결함 등록 (선택적으로 `roundId`를 넘기면 실행 사이클도 함께 기록) |
 | `list_bugs` | 결함 목록 조회 / `status`·`severity`·`priority`·`q`(키워드)로 검색·필터링 |
 | `get_bug` | 결함 하나의 전체 상세 조회 |
-| `update_bug` | 결함 수정 및 상태 전이(OPEN→IN_PROGRESS→FIXED→CLOSED), 연관된 실행 사이클(`roundId`)·세션 케이스(`cycleCaseId`) 재지정/해제(null). 수정 전 내용은 이전 버전 이력으로 자동 보존 |
+| `update_bug` | 결함 수정 및 상태 전이(OPEN→IN_PROGRESS→FIXED→CLOSED), 연관된 실행 사이클(`roundId`)·세션 케이스(`cycleCaseId`) 재지정/해제(null) — 둘은 같은 세션의 것이어야 함(하나만 바꿔도 남은 쪽과 맞는지 확인). 수정 전 내용은 이전 버전 이력으로 자동 보존 |
+| `link_bug_to_result` | 이미 등록된 결함이 다른 세션/회차에서 다시 발견됐을 때, 원래 발견 위치는 그대로 두고 이번 실행도 함께 기록 (같은 조합은 한 번만) |
+| `attach_bug_evidence` | 결함에 증거 파일(스크린샷·영상·로그 등) 첨부 — 자동화 실행의 아티팩트는 `get_automation_run_artifact`로 받아 그대로 전달 |
 | `get_project_summary` | 테스트 케이스 수/요구사항 커버리지/세션 수/상태별 결함 수를 한 번에 조회 |
 
 API 키로 직접 기록한 실행 결과·결함에는 "🔑 (키 이름)" 배지가 붙어, 사람이 실행한 것과 구분됩니다.
@@ -133,11 +135,11 @@ API 키로 직접 기록한 실행 결과·결함에는 "🔑 (키 이름)" 배�
 실제 OTM Companion이 스크립트를 구동한 결과가 반영되어 "실행자"란에 컴패니언 이름(🤖)이 표시됩니다.
 
 로그인이 필요한 사이트의 스크립트에는 계정·주소를 값으로 적지 말고 `process.env.OTM_VAR_<키>`(JMeter
-`${__P(키)}`, Postman `{{키}}`)로 참조하세요. 값은 서버에 없고, 실행하는 사람 PC의 OTM Companion이
+`${__P(키)}`, Postman `{{키}}`, Python `os.environ["OTM_VAR_<키>"]`)로 참조하세요. 값은 서버에 없고, 실행하는 사람 PC의 OTM Companion이
 자기 "테스트 계정"에서 주입합니다. 각 컴패니언이 가진 키 이름은 `list_companions`의 `testValueKeys`로
 확인합니다 — 규칙 전체는 `get_automation_script_guide`와 OTestManager 메인 README 참고(이 폴더는 공개
 저장소로 미러링되므로 상대 경로 링크는 걸지 않습니다).
 
-Appium/JMeter/Postman/OWASP ZAP처럼 이 저장소 밖의 도구를 대상으로 스크립트를 작성해야 한다면, 먼저
+Appium/JMeter/Postman/OWASP ZAP/Python(Selenium)처럼 이 저장소 밖의 도구를 대상으로 스크립트를 작성해야 한다면, 먼저
 `get_automation_script_guide`를 호출하세요 — 실제로 실행되는 방식(판정 기준, 필수 요소, 환경
 제약)과 그대로 첨부해서 쓸 수 있는 예시가 kind별로 들어 있습니다.

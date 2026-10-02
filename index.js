@@ -752,7 +752,7 @@ server.registerTool(
       '있으면 아무것도 하지 않고 기존 항목을 그대로 반환합니다(alreadyInSession: true).',
     inputSchema: {
       sessionId: z.string(),
-      caseId: z.string().describe('list_test_cases로 조회한 테스트 케이스 ID'),
+      caseId: z.string().describe('list_test_cases로 조회한 테스트 케이스 ID 또는 케이스 코드(예: ABC-TC-00001)'),
     },
   },
   async ({ sessionId, caseId }) =>
@@ -849,7 +849,7 @@ server.registerTool(
       roundId: z.string(),
       resultId: z.string(),
       status: z.enum(['NOT_RUN', 'PASS', 'FAIL', 'BLOCKED', 'NA']),
-      comment: z.string().optional(),
+      comment: z.string().nullish().describe('결과 코멘트. 생략하면 기존 코멘트를 그대로 두고, null이면 지웁니다.'),
     },
   },
   async ({ sessionId, roundId, resultId, status, comment }) =>

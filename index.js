@@ -499,7 +499,7 @@ server.registerTool(
       documentId: z.string().describe('list_documents로 조회한 문서 ID'),
     },
   },
-  async ({ documentId }) => textResult(await callApi(`/documents/${documentId}`, { method: 'DELETE' }))
+  async ({ documentId }) => textResult(await callApi(`/documents/${encodeURIComponent(documentId)}`, { method: 'DELETE' }))
 );
 
 server.registerTool(
@@ -526,7 +526,7 @@ server.registerTool(
       requirementId: z.string().describe('list_requirements로 조회한 요구사항 ID'),
     },
   },
-  async ({ requirementId }) => textResult(await callApi(`/requirements/${requirementId}`))
+  async ({ requirementId }) => textResult(await callApi(`/requirements/${encodeURIComponent(requirementId)}`))
 );
 
 server.registerTool(
@@ -560,7 +560,7 @@ server.registerTool(
     },
   },
   async ({ requirementId, text }) =>
-    textResult(await callApi(`/requirements/${requirementId}`, { method: 'PATCH', body: JSON.stringify({ text }) }))
+    textResult(await callApi(`/requirements/${encodeURIComponent(requirementId)}`, { method: 'PATCH', body: JSON.stringify({ text }) }))
 );
 
 server.registerTool(
@@ -647,7 +647,7 @@ server.registerTool(
       caseId: z.string().describe('list_test_cases로 조회한 테스트 케이스 ID'),
     },
   },
-  async ({ caseId }) => textResult(await callApi(`/test-cases/${caseId}`))
+  async ({ caseId }) => textResult(await callApi(`/test-cases/${encodeURIComponent(caseId)}`))
 );
 
 server.registerTool(
@@ -668,7 +668,7 @@ server.registerTool(
       steps: z.array(z.object({ action: z.string(), expected: z.string() })).optional().describe('테스트 스텝 목록 (전달 시 전체 교체)'),
     },
   },
-  async ({ caseId, ...patch }) => textResult(await callApi(`/test-cases/${caseId}`, { method: 'PATCH', body: JSON.stringify(patch) }))
+  async ({ caseId, ...patch }) => textResult(await callApi(`/test-cases/${encodeURIComponent(caseId)}`, { method: 'PATCH', body: JSON.stringify(patch) }))
 );
 
 server.registerTool(
@@ -695,7 +695,7 @@ server.registerTool(
     },
   },
   async ({ caseId, fileName, content, steps }) =>
-    textResult(await callApi(`/test-cases/${caseId}/script`, { method: 'PUT', body: JSON.stringify({ fileName, content, steps }) }))
+    textResult(await callApi(`/test-cases/${encodeURIComponent(caseId)}/script`, { method: 'PUT', body: JSON.stringify({ fileName, content, steps }) }))
 );
 
 server.registerTool(
@@ -707,7 +707,7 @@ server.registerTool(
       caseId: z.string().describe('list_test_cases로 조회한 테스트 케이스 ID'),
     },
   },
-  async ({ caseId }) => textResult(await callApi(`/test-cases/${caseId}/script`, { method: 'DELETE' }))
+  async ({ caseId }) => textResult(await callApi(`/test-cases/${encodeURIComponent(caseId)}/script`, { method: 'DELETE' }))
 );
 
 server.registerTool(
@@ -739,7 +739,7 @@ server.registerTool(
     description: '특정 세션에 포함된 테스트 케이스 목록을 가져옵니다.',
     inputSchema: { sessionId: z.string() },
   },
-  async ({ sessionId }) => textResult(await callApi(`/sessions/${sessionId}/cases`))
+  async ({ sessionId }) => textResult(await callApi(`/sessions/${encodeURIComponent(sessionId)}/cases`))
 );
 
 server.registerTool(
@@ -756,7 +756,7 @@ server.registerTool(
     },
   },
   async ({ sessionId, caseId }) =>
-    textResult(await callApi(`/sessions/${sessionId}/cases`, { method: 'POST', body: JSON.stringify({ caseId }) }))
+    textResult(await callApi(`/sessions/${encodeURIComponent(sessionId)}/cases`, { method: 'POST', body: JSON.stringify({ caseId }) }))
 );
 
 server.registerTool(
@@ -769,7 +769,7 @@ server.registerTool(
       cycleCaseId: z.string().describe('list_session_cases로 조회한 세션 케이스 ID'),
     },
   },
-  async ({ sessionId, cycleCaseId }) => textResult(await callApi(`/sessions/${sessionId}/cases/${cycleCaseId}`))
+  async ({ sessionId, cycleCaseId }) => textResult(await callApi(`/sessions/${encodeURIComponent(sessionId)}/cases/${encodeURIComponent(cycleCaseId)}`))
 );
 
 server.registerTool(
@@ -786,7 +786,7 @@ server.registerTool(
   },
   async ({ caseId, requirementIds }) =>
     textResult(
-      await callApi(`/test-cases/${caseId}/requirements`, {
+      await callApi(`/test-cases/${encodeURIComponent(caseId)}/requirements`, {
         method: 'PATCH',
         body: JSON.stringify({ requirementIds }),
       })
@@ -800,7 +800,7 @@ server.registerTool(
     description: '세션의 실행 회차(실행 1회, 2회 ...) 목록을 가져옵니다.',
     inputSchema: { sessionId: z.string() },
   },
-  async ({ sessionId }) => textResult(await callApi(`/sessions/${sessionId}/rounds`))
+  async ({ sessionId }) => textResult(await callApi(`/sessions/${encodeURIComponent(sessionId)}/rounds`))
 );
 
 server.registerTool(
@@ -818,7 +818,7 @@ server.registerTool(
       '마세요 — 이 둘은 resultId가 아닙니다.',
     inputSchema: { sessionId: z.string(), roundId: z.string() },
   },
-  async ({ sessionId, roundId }) => textResult(await callApi(`/sessions/${sessionId}/rounds/${roundId}/results`))
+  async ({ sessionId, roundId }) => textResult(await callApi(`/sessions/${encodeURIComponent(sessionId)}/rounds/${encodeURIComponent(roundId)}/results`))
 );
 
 server.registerTool(
@@ -836,7 +836,7 @@ server.registerTool(
     inputSchema: { sessionId: z.string(), roundId: z.string(), resultId: z.string() },
   },
   async ({ sessionId, roundId, resultId }) =>
-    textResult(await callApi(`/sessions/${sessionId}/rounds/${roundId}/results/${resultId}`))
+    textResult(await callApi(`/sessions/${encodeURIComponent(sessionId)}/rounds/${encodeURIComponent(roundId)}/results/${encodeURIComponent(resultId)}`))
 );
 
 server.registerTool(
@@ -854,7 +854,7 @@ server.registerTool(
   },
   async ({ sessionId, roundId, resultId, status, comment }) =>
     textResult(
-      await callApi(`/sessions/${sessionId}/rounds/${roundId}/results/${resultId}`, {
+      await callApi(`/sessions/${encodeURIComponent(sessionId)}/rounds/${encodeURIComponent(roundId)}/results/${encodeURIComponent(resultId)}`, {
         method: 'PATCH',
         body: JSON.stringify({ status, comment }),
       })
@@ -868,7 +868,7 @@ server.registerTool(
     description: '이 케이스의 자동화 스크립트가 첨부/교체/삭제될 때마다 남는 이전 버전 이력을 조회합니다.',
     inputSchema: { caseId: z.string().describe('list_test_cases로 조회한 테스트 케이스 ID') },
   },
-  async ({ caseId }) => textResult(await callApi(`/test-cases/${caseId}/script/versions`))
+  async ({ caseId }) => textResult(await callApi(`/test-cases/${encodeURIComponent(caseId)}/script/versions`))
 );
 
 server.registerTool(
@@ -905,7 +905,7 @@ server.registerTool(
   },
   async ({ sessionId, roundId, resultId, companionId, runnerId }) =>
     textResult(
-      await callApi(`/sessions/${sessionId}/rounds/${roundId}/results/${resultId}/run-automation`, {
+      await callApi(`/sessions/${encodeURIComponent(sessionId)}/rounds/${encodeURIComponent(roundId)}/results/${encodeURIComponent(resultId)}/run-automation`, {
         method: 'POST',
         body: JSON.stringify({ companionId: companionId ?? runnerId }),
       })
@@ -928,7 +928,7 @@ server.registerTool(
       '넘기세요 - list_sessions/list_rounds로 다시 뒤져서 추측하지 마세요.',
     inputSchema: { runId: z.string() },
   },
-  async ({ runId }) => textResult(await callApi(`/automation-runs/${runId}`))
+  async ({ runId }) => textResult(await callApi(`/automation-runs/${encodeURIComponent(runId)}`))
 );
 
 server.registerTool(
@@ -944,7 +944,7 @@ server.registerTool(
       artifactId: z.string().describe('get_automation_run_status 응답의 artifacts[].id'),
     },
   },
-  async ({ runId, artifactId }) => textResult(await callApi(`/automation-runs/${runId}/artifacts/${artifactId}`))
+  async ({ runId, artifactId }) => textResult(await callApi(`/automation-runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(artifactId)}`))
 );
 
 server.registerTool(
@@ -1023,7 +1023,7 @@ server.registerTool(
     description: '결함 하나의 전체 상세를 가져옵니다.',
     inputSchema: { bugId: z.string().describe('list_bugs/create_bug로 조회한 결함 ID') },
   },
-  async ({ bugId }) => textResult(await callApi(`/bugs/${bugId}`))
+  async ({ bugId }) => textResult(await callApi(`/bugs/${encodeURIComponent(bugId)}`))
 );
 
 server.registerTool(
@@ -1048,7 +1048,7 @@ server.registerTool(
       cycleCaseId: z.string().nullable().optional().describe('연관된 세션 케이스 ID (list_session_cases로 조회, null이면 연결 해제)'),
     },
   },
-  async ({ bugId, ...patch }) => textResult(await callApi(`/bugs/${bugId}`, { method: 'PATCH', body: JSON.stringify(patch) }))
+  async ({ bugId, ...patch }) => textResult(await callApi(`/bugs/${encodeURIComponent(bugId)}`, { method: 'PATCH', body: JSON.stringify(patch) }))
 );
 
 server.registerTool(
@@ -1067,7 +1067,7 @@ server.registerTool(
     },
   },
   async ({ bugId, cycleCaseId, roundId }) =>
-    textResult(await callApi(`/bugs/${bugId}/occurrences`, { method: 'POST', body: JSON.stringify({ cycleCaseId, roundId }) }))
+    textResult(await callApi(`/bugs/${encodeURIComponent(bugId)}/occurrences`, { method: 'POST', body: JSON.stringify({ cycleCaseId, roundId }) }))
 );
 
 server.registerTool(
@@ -1090,7 +1090,7 @@ server.registerTool(
   },
   async ({ bugId, fileName, contentBase64, mimeType }) =>
     textResult(
-      await callApi(`/bugs/${bugId}/attachments`, {
+      await callApi(`/bugs/${encodeURIComponent(bugId)}/attachments`, {
         method: 'POST',
         body: JSON.stringify({ fileName, contentBase64, mimeType }),
       })

@@ -138,7 +138,7 @@ const WRITE_TOOLS = new Set([
   'create_requirement', 'update_requirement',
   'create_test_case', 'update_test_case', 'attach_automation_script', 'remove_automation_script',
   'create_session', 'add_case_to_session', 'update_case_requirements',
-  'record_result', 'run_case_automation',
+  'record_result', 'run_case_automation', 'cancel_automation_run',
   'create_bug', 'update_bug', 'link_bug_to_result', 'attach_bug_evidence', 'attach_run_artifact_to_bug',
 ]);
 
@@ -898,7 +898,9 @@ server.registerTool(
       'get_automation_run_status로 다시 확인하세요. ' +
       '이 호출은 매번 새로운 실행(run)을 생성하며, 반환되는 runId는 이번 실행 전용입니다. 같은 케이스에 ' +
       '대한 이전 runId는 이 호출 이후 더 이상 최신 상태를 반영하지 않으니 폐기하고, 이후로는 이번에 받은 ' +
-      '새 runId로만 상태를 조회하세요. 스크립트가 쓰는 테스트 값(OTM_VAR_*)이 그 컴패니언에 없으면 ' +
+      '새 runId로만 상태를 조회하세요. 그 결과가 아직 실행 중(대기열 포함)이면 새로 실행하지 않고 거부하며, ' +
+      '오류 메시지에 진행 중인 runId를 알려줍니다 — 그 runId로 get_automation_run_status를 조회하거나, ' +
+      '정말 다시 실행해야 하면 cancel_automation_run으로 중단한 뒤 호출하세요. 스크립트가 쓰는 테스트 값(OTM_VAR_*)이 그 컴패니언에 없으면 ' +
       '실행하지 않고 어떤 키가 없는지 알려줍니다. 응답에 포함된 ' +
       'cycleCaseId/roundId는 바로 이 실행이 속한 세션의 케이스/회차이므로, FAIL을 결함으로 등록할 때 ' +
       'create_bug에 다른 도구로 다시 찾지 말고 그대로 넘기세요.',
@@ -945,6 +947,20 @@ server.registerTool(
     inputSchema: { runId: z.string() },
   },
   async ({ runId }) => textResult(await callApi(`/automation-runs/${encodeURIComponent(runId)}`))
+);
+
+server.registerTool(
+  'cancel_automation_run',
+  {
+    title: '자동 실행 중단',
+    description:
+      '아직 끝나지 않은 자동 실행(컴패니언 대기열에서 기다리는 중이거나 실행 중)을 중단합니다. 실행 탭의 중단 ' +
+      '버튼과 같습니다: 컴패니언에 프로세스 종료를 요청하고, 실행은 ERROR("사용자에 의해 중단되었습니다.")로 ' +
+      '끝납니다. 이미 끝난 실행은 중단할 수 없습니다. 사용자가 중단을 원하거나, 실행 중인 케이스를 꼭 다시 ' +
+      '실행해야 할 때만 쓰세요 — 단지 오래 걸린다는 이유로 중단하지 마세요.',
+    inputSchema: { runId: z.string().describe('run_case_automation/get_automation_run_status 응답의 runId') },
+  },
+  async ({ runId }) => textResult(await callApi(`/automation-runs/${encodeURIComponent(runId)}/cancel`, { method: 'POST' }))
 );
 
 server.registerTool(

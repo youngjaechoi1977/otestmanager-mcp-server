@@ -58,7 +58,7 @@ npm install
 
 ### 읽기 전용 키
 
-발급할 때 **읽기 전용**을 고르면 MCP 서버가 조회 툴만 등록합니다(쓰기 툴 19개는 나타나지 않습니다).
+발급할 때 **읽기 전용**을 고르면 MCP 서버가 조회 툴만 등록합니다(쓰기 툴 20개는 나타나지 않습니다).
 서버도 GET 외의 요청을 거절합니다.
 
 ### 이전 방식의 프로젝트 키
@@ -118,8 +118,9 @@ curl -H "X-Api-Key: otm_u_xxx" https://<서버>/api/v1/projects/<ID 또는 코�
 | `get_round_results` | 실행 회차의 케이스별 결과 전체 목록 |
 | `get_round_test_case_result` | 실행 회차의 결과 하나만 조회 (resultId를 이미 알고 있을 때, 전체 목록 재조회 없이) |
 | `record_result` | 실행 결과 직접 기록 (Pass/Fail/Blocked/N/A) — 자동화 스크립트가 없는 케이스나 수동 판단 결과용. `comment`를 생략하면 기존 코멘트 유지, null이면 지움 |
-| `run_case_automation` | 케이스에 첨부된 자동화 스크립트를 실제 OTM Companion에서 실행하고 결과를 반영 (`companionId`로 지정 가능). 최대 약 45초 기다리고, 그 안에 끝나지 않으면 `IN_PROGRESS`와 `runId`를 돌려줌(실행은 계속되며 `get_automation_run_status`로 확인 — MCP 클라이언트의 60초 호출 제한과 프록시 제한 시간에 걸리지 않도록). 컴패니언이 5분 안에 시작을 알리지 않거나, 스크립트 제한 시간에 10분을 더해도 결과가 없거나, 연결되지 않은 컴패니언을 24시간 기다리면 서버가 오류로 정리 |
+| `run_case_automation` | 케이스에 첨부된 자동화 스크립트를 실제 OTM Companion에서 실행하고 결과를 반영 (`companionId`로 지정 가능). 최대 약 45초 기다리고, 그 안에 끝나지 않으면 `IN_PROGRESS`와 `runId`를 돌려줌(실행은 계속되며 `get_automation_run_status`로 확인 — MCP 클라이언트의 60초 호출 제한과 프록시 제한 시간에 걸리지 않도록). 그 결과가 아직 실행 중(대기열 포함)이면 새로 실행하지 않고 거부하며 진행 중인 `runId`를 알려줌. 컴패니언이 5분 안에 시작을 알리지 않거나, 스크립트 제한 시간에 10분을 더해도 결과가 없거나, 연결되지 않은 컴패니언을 24시간 기다리면 서버가 오류로 정리 |
 | `get_automation_run_status` | `run_case_automation`이 시간 내 끝나지 않았을 때 최종 결과(로그, 아티팩트 목록 포함) 재확인 |
+| `cancel_automation_run` | 아직 끝나지 않은 자동 실행(대기 중이거나 실행 중)을 중단 — 실행 탭의 중단 버튼과 같음 |
 | `get_automation_run_artifact` | 실행 결과의 첨부 파일 내용 가져오기 — 이미지는 이미지로, 그 밖의 파일은 base64로 (최대 10MB) |
 | `list_companions` | 이 프로젝트를 실행할 수 있는 OTM Companion의 연결 여부·실행 가능한 스크립트 종류(capabilities)·이 프로젝트용 테스트 값 키(`testValueKeys`, 값 없음) 조회 — `run_case_automation` 호출 전 미리 확인용. 예전 이름 `list_runners`도 같은 동작 |
 | `create_bug` | 결함 등록 (선택적으로 `roundId`를 넘기면 실행 사이클도 함께 기록) |

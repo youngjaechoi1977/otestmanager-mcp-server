@@ -58,7 +58,7 @@ npm install
 
 ### 읽기 전용 키
 
-발급할 때 **읽기 전용**을 고르면 MCP 서버가 조회 툴만 등록합니다(쓰기 툴 18개는 나타나지 않습니다).
+발급할 때 **읽기 전용**을 고르면 MCP 서버가 조회 툴만 등록합니다(쓰기 툴 19개는 나타나지 않습니다).
 서버도 GET 외의 요청을 거절합니다.
 
 ### 이전 방식의 프로젝트 키
@@ -118,16 +118,17 @@ curl -H "X-Api-Key: otm_u_xxx" https://<서버>/api/v1/projects/<ID 또는 코�
 | `get_round_results` | 실행 회차의 케이스별 결과 전체 목록 |
 | `get_round_test_case_result` | 실행 회차의 결과 하나만 조회 (resultId를 이미 알고 있을 때, 전체 목록 재조회 없이) |
 | `record_result` | 실행 결과 직접 기록 (Pass/Fail/Blocked/N/A) — 자동화 스크립트가 없는 케이스나 수동 판단 결과용. `comment`를 생략하면 기존 코멘트 유지, null이면 지움 |
-| `run_case_automation` | 케이스에 첨부된 자동화 스크립트를 실제 OTM Companion에서 실행하고 결과를 반영 (`companionId`로 지정 가능). 컴패니언이 5분 안에 시작을 알리지 않거나, 스크립트 제한 시간에 10분을 더해도 결과가 없거나, 연결되지 않은 컴패니언을 24시간 기다리면 서버가 오류로 정리 |
+| `run_case_automation` | 케이스에 첨부된 자동화 스크립트를 실제 OTM Companion에서 실행하고 결과를 반영 (`companionId`로 지정 가능). 최대 약 45초 기다리고, 그 안에 끝나지 않으면 `IN_PROGRESS`와 `runId`를 돌려줌(실행은 계속되며 `get_automation_run_status`로 확인 — MCP 클라이언트의 60초 호출 제한과 프록시 제한 시간에 걸리지 않도록). 컴패니언이 5분 안에 시작을 알리지 않거나, 스크립트 제한 시간에 10분을 더해도 결과가 없거나, 연결되지 않은 컴패니언을 24시간 기다리면 서버가 오류로 정리 |
 | `get_automation_run_status` | `run_case_automation`이 시간 내 끝나지 않았을 때 최종 결과(로그, 아티팩트 목록 포함) 재확인 |
-| `get_automation_run_artifact` | 실행 결과의 첨부 파일(스크린샷/영상/.jtl 등)을 base64로 가져오기 (최대 10MB) |
+| `get_automation_run_artifact` | 실행 결과의 첨부 파일 내용 가져오기 — 이미지는 이미지로, 그 밖의 파일은 base64로 (최대 10MB) |
 | `list_companions` | 이 프로젝트를 실행할 수 있는 OTM Companion의 연결 여부·실행 가능한 스크립트 종류(capabilities)·이 프로젝트용 테스트 값 키(`testValueKeys`, 값 없음) 조회 — `run_case_automation` 호출 전 미리 확인용. 예전 이름 `list_runners`도 같은 동작 |
 | `create_bug` | 결함 등록 (선택적으로 `roundId`를 넘기면 실행 사이클도 함께 기록) |
 | `list_bugs` | 결함 목록 조회 / `status`·`severity`·`priority`·`q`(키워드)로 검색·필터링 |
 | `get_bug` | 결함 하나의 전체 상세 조회 |
 | `update_bug` | 결함 수정 및 상태 전이(OPEN→IN_PROGRESS→FIXED→CLOSED), 연관된 실행 사이클(`roundId`)·세션 케이스(`cycleCaseId`) 재지정/해제(null) — 둘은 같은 세션의 것이어야 함(하나만 바꿔도 남은 쪽과 맞는지 확인). 수정 전 내용은 이전 버전 이력으로 자동 보존 |
 | `link_bug_to_result` | 이미 등록된 결함이 다른 세션/회차에서 다시 발견됐을 때, 원래 발견 위치는 그대로 두고 이번 실행도 함께 기록 (같은 조합은 한 번만) |
-| `attach_bug_evidence` | 결함에 증거 파일(스크린샷·영상·로그 등) 첨부 — 자동화 실행의 아티팩트는 `get_automation_run_artifact`로 받아 그대로 전달 |
+| `attach_bug_evidence` | 결함에 증거 파일을 base64로 직접 올려 첨부 (최대 10MB) — 실행 아티팩트가 아닌 작은 파일용 |
+| `attach_run_artifact_to_bug` | 자동화 실행의 아티팩트(스크린샷·영상 등)를 서버에서 바로 결함에 복사해 첨부 — 파일 내용을 주고받지 않음 |
 | `get_project_summary` | 테스트 케이스 수/요구사항 커버리지/세션 수/상태별 결함 수를 한 번에 조회 |
 
 API 키로 직접 기록한 실행 결과·결함에는 "🔑 (키 이름)" 배지가 붙어, 사람이 실행한 것과 구분됩니다.

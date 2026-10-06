@@ -53,6 +53,22 @@ async function request(url, options = {}) {
   return { res, body };
 }
 
+// The error to show the model for a failed call: the server's message, plus which fields its
+// validation refused (`details`, from zod) so the model can correct the call rather than guess.
+// A reply that isn't JSON at all came from something in front of the server (a proxy timeout's
+// HTML page, say), which the status alone would not make clear.
+function apiError(res, body, fallback = '요청 실패') {
+  if (!body || typeof body !== 'object') {
+    return new Error(`${fallback} (${res.status}) — 서버가 아닌 중간 프록시의 응답일 수 있습니다(JSON이 아님).`);
+  }
+  let message = body.error || `${fallback} (${res.status})`;
+  if (Array.isArray(body.details) && body.details.length) {
+    const fields = body.details.map((d) => `${(d.path ?? []).join('.') || '(본문)'}: ${d.message}`);
+    message += `\n잘못된 입력: ${fields.join('; ')}`;
+  }
+  return new Error(message);
+}
+
 // What kind of key this is. A server from before /api/v1 answers 404 here, and only ever issued
 // project keys, so that is treated as one.
 async function detectKey() {
@@ -87,7 +103,7 @@ async function projectIdFor(ref) {
   // Resolved through the query string rather than the path: a name or URL can hold characters
   // (a slash above all) that a proxy in front of the server would not pass through a path intact.
   const { res, body } = await request(`/api/v1/projects/resolve?ref=${encodeURIComponent(key)}`);
-  if (!res.ok) throw new Error(body?.error || `프로젝트 확인 실패 (${res.status})`);
+  if (!res.ok) throw apiError(res, body, '프로젝트 확인 실패');
   resolvedProjects.set(key, body.id);
   return body.id;
 }
@@ -97,9 +113,7 @@ async function callApi(path, options = {}) {
     ? `/api/v1/projects/${encodeURIComponent(await projectIdFor(currentProject.getStore()))}`
     : '/api/mcp';
   const { res, body } = await request(`${base}${path}`, options);
-  if (!res.ok) {
-    throw new Error(body?.error || `요청 실패 (${res.status})`);
-  }
+  if (!res.ok) throw apiError(res, body);
   return body;
 }
 
@@ -125,7 +139,7 @@ const WRITE_TOOLS = new Set([
   'create_test_case', 'update_test_case', 'attach_automation_script', 'remove_automation_script',
   'create_session', 'add_case_to_session', 'update_case_requirements',
   'record_result', 'run_case_automation',
-  'create_bug', 'update_bug', 'link_bug_to_result', 'attach_bug_evidence',
+  'create_bug', 'update_bug', 'link_bug_to_result', 'attach_bug_evidence', 'attach_run_artifact_to_bug',
 ]);
 
 // Tools that don't touch a project, and so take no `project` argument.
@@ -169,7 +183,7 @@ if (ACCOUNT_KEY) {
     },
     async () => {
       const { res, body } = await request('/api/v1/projects');
-      if (!res.ok) throw new Error(body?.error || `요청 실패 (${res.status})`);
+      if (!res.ok) throw apiError(res, body);
       return textResult(
         body.map((p) => ({ organization: p.org.name, name: p.name, code: p.code, id: p.id, status: p.status }))
       );
@@ -688,8 +702,8 @@ server.registerTool(
       '기존 스텝은 그대로 유지되므로, 스크립트가 스텝 그대로만 구현했을 때만 생략하면 됩니다.',
     inputSchema: {
       caseId: z.string().describe('list_test_cases로 조회한 테스트 케이스 ID'),
-      fileName: z.string().describe('스크립트 파일명 (.ts, .jmx, .json 중 하나로 끝나야 함 — 확장자만 사용되고 실제 저장 파일명은 케이스 ID·제목 기반으로 서버가 재생성함)'),
-      content: z.string().describe('스크립트 전체 내용 — 맨 앞에 실제 엔진(Playwright/Appium/OWASP ZAP/Node.js/JMeter/Postman)을 표시하는 주석 또는 info.description을 포함해야 함'),
+      fileName: z.string().describe('스크립트 파일명 (.ts, .jmx, .json, .py 중 하나로 끝나야 함 — 확장자만 사용되고 실제 저장 파일명은 케이스 ID·제목 기반으로 서버가 재생성함)'),
+      content: z.string().describe('스크립트 전체 내용 — 맨 앞에 실제 엔진(Playwright/Appium/OWASP ZAP/Node.js/JMeter/Postman/Selenium)을 표시하는 주석 또는 info.description을 포함해야 함'),
       steps: z.array(z.object({ action: z.string(), expected: z.string() })).optional()
         .describe('스크립트가 실제로 구현하는 전체 스텝 목록(전달 시 케이스의 기존 스텝을 통째로 교체) — 스크립트가 텍스트 스텝에 없던 동작을 추가로 구현했을 때만 전달'),
     },
@@ -879,8 +893,9 @@ server.registerTool(
       '이 케이스에 첨부된 자동화 스크립트를 실제 OTM Companion(사람 PC에서 도는 실행 프로그램)에서 실행합니다. ' +
       'record_result로 직접 결과를 기록하는 대신, 컴패니언이 스크립트를 구동한 결과(Pass/Fail)를 그대로 반영합니다. ' +
       '컴패니언별 동시 실행 제한에 걸리면 자리가 날 때까지 대기열에서 기다렸다가 자동으로 ' +
-      '실행되며, 이 도구는 그 대기까지 포함해서 기다립니다. 실행이 오래 걸려 시간 내 끝나지 않으면 ' +
-      'status: "IN_PROGRESS"와 runId를 반환하니, get_automation_run_status로 다시 확인하세요. ' +
+      '실행되며, 이 도구는 그 대기까지 포함해서 최대 약 45초 기다립니다. 그 안에 끝나지 않으면 ' +
+      'status: "IN_PROGRESS"와 runId를 반환하니(실행은 계속됨), 이 도구를 다시 호출하지 말고 ' +
+      'get_automation_run_status로 다시 확인하세요. ' +
       '이 호출은 매번 새로운 실행(run)을 생성하며, 반환되는 runId는 이번 실행 전용입니다. 같은 케이스에 ' +
       '대한 이전 runId는 이 호출 이후 더 이상 최신 상태를 반영하지 않으니 폐기하고, 이후로는 이번에 받은 ' +
       '새 runId로만 상태를 조회하세요. 스크립트가 쓰는 테스트 값(OTM_VAR_*)이 그 컴패니언에 없으면 ' +
@@ -917,7 +932,8 @@ server.registerTool(
   {
     title: '자동 실행 상태 조회',
     description:
-      'run_case_automation이 시간 내에 끝나지 않았을 때, runId로 최종 결과를 다시 확인합니다. ' +
+      'run_case_automation이 시간 내에 끝나지 않았을 때(status: "IN_PROGRESS"), runId로 최종 결과를 다시 ' +
+      '확인합니다. 아직 PENDING/QUEUED/DISPATCHED/RUNNING이면 잠시 뒤 다시 조회하세요. ' +
       '조회한 runId가 그 사이에 같은 케이스에 대해 다시 실행된 run_case_automation으로 인해 이미 낡은 ' +
       '(최신이 아닌) 실행일 수 있습니다. 이 케이스에 대해 더 최근 실행이 있는지 확실하지 않다면 ' +
       'run_case_automation을 다시 호출하지 말고, 먼저 get_round_test_case_result로 그 resultId의 ' +
@@ -936,15 +952,31 @@ server.registerTool(
   {
     title: '자동 실행 첨부 파일(아티팩트) 가져오기',
     description:
-      'run_case_automation/get_automation_run_status 응답의 artifacts 목록에 있는 파일(예: 실패 스크린샷 ' +
-      'failure.png, Playwright 영상 .webm, JMeter 결과 .jtl)을 base64로 인코딩해 가져옵니다. ' +
-      '10MB를 넘는 파일은 가져올 수 없습니다 — 웹 UI의 실행 탭에서 확인하세요.',
+      'run_case_automation/get_automation_run_status 응답의 artifacts 목록에 있는 파일 내용을 직접 봐야 할 ' +
+      '때 가져옵니다. 이미지(실패 스크린샷 failure.png 등)는 이미지로 바로 보여주고, 그 밖의 파일(영상 .webm, ' +
+      'JMeter 결과, 리포트 등)은 base64로 인코딩해 돌려줍니다. 10MB를 넘는 파일은 가져올 수 없습니다 — 웹 UI의 ' +
+      '실행 탭에서 확인하세요. 결함에 증거로 첨부하려는 것이면 이 도구로 내용을 받지 말고 ' +
+      'attach_run_artifact_to_bug를 쓰세요.',
     inputSchema: {
       runId: z.string(),
       artifactId: z.string().describe('get_automation_run_status 응답의 artifacts[].id'),
     },
   },
-  async ({ runId, artifactId }) => textResult(await callApi(`/automation-runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(artifactId)}`))
+  async ({ runId, artifactId }) => {
+    const artifact = await callApi(`/automation-runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(artifactId)}`);
+    // An image goes to the model as an image, which it can actually look at and which costs far
+    // less context than the same bytes as base64 text.
+    if (typeof artifact?.mimeType === 'string' && artifact.mimeType.startsWith('image/')) {
+      const { contentBase64, ...meta } = artifact;
+      return {
+        content: [
+          { type: 'text', text: JSON.stringify(meta, null, 2) },
+          { type: 'image', data: contentBase64, mimeType: artifact.mimeType },
+        ],
+      };
+    }
+    return textResult(artifact);
+  }
 );
 
 server.registerTool(
@@ -969,7 +1001,7 @@ server.registerTool(
       '이 프로젝트에 새 결함을 등록합니다. 등록 전 list_bugs로 이미 같은 결함(같은 대상/증상)이 ' +
       '등록되어 있는지 확인하는 게 좋습니다 - 이미 있다면 새로 만들지 말고 link_bug_to_result로 ' +
       '이번 실행을 그 기존 결함에 연결하세요(중복 결함 생성 방지). 자동화 실행 결과로 발견된 ' +
-      '결함이면, 등록(또는 link_bug_to_result로 연결) 후 attach_bug_evidence로 관련 스크린샷/영상을 ' +
+      '결함이면, 등록(또는 link_bug_to_result로 연결) 후 attach_run_artifact_to_bug로 관련 스크린샷/영상을 ' +
       '첨부하세요.',
     inputSchema: {
       title: z.string(),
@@ -1075,16 +1107,15 @@ server.registerTool(
   {
     title: '결함에 증거 자료 첨부',
     description:
-      '결함에 증거 파일(스크린샷, 영상, 로그 등)을 첨부합니다. 여러 번 호출해서 여러 파일을 첨부할 수 ' +
-      '있습니다. 자동화 실행 결과로 발견된 결함이면, get_automation_run_status 응답의 artifacts ' +
-      '목록에서 관련 파일(스크린샷 우선, 없으면 영상)의 id를 찾아 get_automation_run_artifact로 ' +
-      '가져온 뒤 그 fileName/contentBase64/mimeType을 그대로 여기에 전달하세요. 로그처럼 텍스트인 ' +
-      '증거는 굳이 파일로 첨부하지 말고 결함의 actualResult/description에 직접 인용하는 편이 ' +
-      '낫습니다.',
+      '결함에 증거 파일을 base64로 직접 올려 첨부합니다(최대 10MB). 여러 번 호출해서 여러 파일을 첨부할 수 ' +
+      '있습니다. 자동화 실행의 아티팩트(스크린샷/영상 등)는 이 도구가 아니라 attach_run_artifact_to_bug로 ' +
+      '첨부하세요 — 서버에서 바로 복사하므로 파일 내용을 주고받을 필요가 없습니다. 이 도구는 실행 아티팩트가 ' +
+      '아닌 작은 파일용입니다. 로그처럼 텍스트인 증거는 굳이 파일로 첨부하지 말고 결함의 ' +
+      'actualResult/description에 직접 인용하는 편이 낫습니다.',
     inputSchema: {
       bugId: z.string().describe('list_bugs/create_bug로 조회한 결함 ID'),
       fileName: z.string().describe('파일명 (확장자 포함)'),
-      contentBase64: z.string().describe('파일 내용 (base64) - get_automation_run_artifact 응답의 contentBase64를 그대로 전달 가능'),
+      contentBase64: z.string().describe('파일 내용 (base64)'),
       mimeType: z.string().optional().describe('예: image/png, video/webm - 생략 시 application/octet-stream'),
     },
   },
@@ -1093,6 +1124,31 @@ server.registerTool(
       await callApi(`/bugs/${encodeURIComponent(bugId)}/attachments`, {
         method: 'POST',
         body: JSON.stringify({ fileName, contentBase64, mimeType }),
+      })
+    )
+);
+
+server.registerTool(
+  'attach_run_artifact_to_bug',
+  {
+    title: '자동 실행 아티팩트를 결함에 첨부',
+    description:
+      '자동화 실행이 남긴 파일(실패 스크린샷, 영상, 리포트 등)을 서버에서 바로 결함의 증거로 복사해 첨부합니다. ' +
+      '파일 내용을 받아서 다시 올릴 필요가 없고 attach_bug_evidence의 10MB 제한도 받지 않습니다. 자동화 실행 결과로 발견된 결함이면 ' +
+      '등록(create_bug) 또는 연결(link_bug_to_result) 후, run_case_automation/get_automation_run_status 응답의 ' +
+      'artifacts 목록에서 관련 파일(스크린샷 우선, 없으면 영상)의 id를 골라 이 도구로 첨부하세요. 여러 번 ' +
+      '호출해서 여러 파일을 첨부할 수 있습니다.',
+    inputSchema: {
+      bugId: z.string().describe('list_bugs/create_bug로 조회한 결함 ID 또는 결함 코드'),
+      runId: z.string().describe('run_case_automation/get_automation_run_status 응답의 runId'),
+      artifactId: z.string().describe('같은 응답의 artifacts[].id'),
+    },
+  },
+  async ({ bugId, runId, artifactId }) =>
+    textResult(
+      await callApi(`/bugs/${encodeURIComponent(bugId)}/attachments/from-run`, {
+        method: 'POST',
+        body: JSON.stringify({ runId, artifactId }),
       })
     )
 );

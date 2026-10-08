@@ -1341,6 +1341,79 @@ server.registerTool(
 );
 
 server.registerTool(
+  'run_impact_analysis',
+  {
+    title: '변경 영향 분석 시작',
+    description:
+      '사이트·디자인 변경 요약(마크다운; "## 영역" 제목이나 "- 항목" 불릿으로 변경 항목을 나누면 항목별로 영향이 분류됨)을 주면 프로젝트의 테스트 케이스 전체(또는 folderIds/caseIds 범위)를 ' +
+      '결정 모델로 분류합니다 - 케이스마다 impact: UNAFFECTED(영향 없음) | TEXT(본문 수정) | SCRIPT(스크립트 수정) | BOTH | OBSOLETE(폐기) | UNKNOWN(판정 못 함), 확률, 영향 준 변경 항목(area). ' +
+      '백그라운드로 진행되며 바로 analysis id와 total을 돌려줍니다. get_impact_analysis로 done/total과 항목을 확인하세요. 판정은 이 키 계정의 결정 모델로 하며, 없으면 설치 기본값, 그것도 없으면 FAILED가 됩니다. ' +
+      '확신도가 그 사람의 자동 반영 임계값 아래인 항목은 NEEDS_HUMAN으로 시작합니다.',
+    inputSchema: {
+      title: z.string().describe('분석 이름 (예: "결제 화면 개편 2026-10-08")'),
+      changeSummary: z.string().describe('무엇이 바뀌었는지 페이지/영역별로 적은 마크다운 요약 (최대 20,000자)'),
+      folderIds: z.array(z.string()).optional().describe('이 케이스 폴더들(하위 포함)만 분석'),
+      caseIds: z.array(z.string()).optional().describe('이 케이스들만 분석 (folderIds보다 우선)'),
+    },
+  },
+  async (body) => textResult(await callApi('/impact-analyses', { method: 'POST', body: JSON.stringify(body) }))
+);
+
+server.registerTool(
+  'get_impact_analysis',
+  {
+    title: '변경 영향 분석 결과 조회',
+    description:
+      '분석의 진행(status RUNNING|DONE|FAILED, done/total), 요약(summary: 종류별·처리별 개수), 항목 목록(items: testCase 코드·제목·스크립트 유무, impact, probability, area, distribution, resolution, note)을 가져옵니다. ' +
+      'impact/resolution으로 거를 수 있습니다. 수정이 필요한 항목(TEXT/SCRIPT/BOTH, resolution OPEN|NEEDS_HUMAN)부터 처리하세요. UNAFFECTED는 자동으로 닫히지 않으니 틀린 "영향 없음"이 없는지 훑어볼 때 씁니다.',
+    inputSchema: {
+      analysisId: z.string().describe('run_impact_analysis 가 돌려준 id'),
+      impact: z.enum(['UNAFFECTED', 'TEXT', 'SCRIPT', 'BOTH', 'OBSOLETE', 'UNKNOWN']).optional(),
+      resolution: z.enum(['OPEN', 'APPLIED', 'DISMISSED', 'NEEDS_HUMAN']).optional(),
+    },
+  },
+  async ({ analysisId, impact, resolution }) => textResult(await callApi(`/impact-analyses/${encodeURIComponent(analysisId)}${qs({ impact, resolution })}`))
+);
+
+server.registerTool(
+  'list_impact_analyses',
+  {
+    title: '변경 영향 분석 목록',
+    description: '이 프로젝트의 변경 영향 분석 목록(최근순, 상태·진행·요청자)을 가져옵니다.',
+    inputSchema: {},
+  },
+  async () => textResult(await callApi('/impact-analyses'))
+);
+
+server.registerTool(
+  'resolve_impact_item',
+  {
+    title: '변경 영향 항목 처리',
+    description:
+      '항목의 처리 상태를 바꿉니다: APPLIED(케이스/스크립트를 고쳤음 - note에 무엇을 했는지), DISMISSED(해당 없음·사람이 영향 없다고 판단), OPEN/NEEDS_HUMAN(되돌림). ' +
+      '실제 수정은 update_test_case / attach_automation_script 로 한 뒤 여기로 기록하세요.',
+    inputSchema: {
+      analysisId: z.string(),
+      itemId: z.string().describe('get_impact_analysis 의 items[].id'),
+      resolution: z.enum(['OPEN', 'APPLIED', 'DISMISSED', 'NEEDS_HUMAN']),
+      note: z.string().optional().describe('처리 내용 (예: "스크립트 v7로 갱신", "폐기 후보 폴더로 이동")'),
+    },
+  },
+  async ({ analysisId, itemId, resolution, note }) =>
+    textResult(await callApi(`/impact-analyses/${encodeURIComponent(analysisId)}/items/${encodeURIComponent(itemId)}`, { method: 'PATCH', body: JSON.stringify({ resolution, note }) }))
+);
+
+server.registerTool(
+  'get_case_impact_history',
+  {
+    title: '케이스의 변경 영향 이력',
+    description: '이 케이스가 과거 변경 영향 분석에서 받은 판정과 처리 내역(최근 10건)을 가져옵니다. 자동 실행 결과를 분석할 때 "최근 변경으로 스크립트가 수정됐는지"를 확인하는 데 씁니다.',
+    inputSchema: { caseId: z.string().describe('테스트 케이스 ID 또는 케이스 코드') },
+  },
+  async ({ caseId }) => textResult(await callApi(`/test-cases/${encodeURIComponent(caseId)}/impact`))
+);
+
+server.registerTool(
   'get_decision_config',
   {
     title: '결정 모델 설정 조회',

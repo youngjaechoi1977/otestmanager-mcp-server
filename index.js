@@ -1348,7 +1348,7 @@ server.registerTool(
       '사이트·디자인 변경 요약(마크다운; "## 영역" 제목이나 "- 항목" 불릿으로 변경 항목을 나누면 항목별로 영향이 분류됨)을 주면 프로젝트의 테스트 케이스 전체(또는 folderIds/caseIds 범위)를 ' +
       '결정 모델로 분류합니다 - 케이스마다 impact: UNAFFECTED(영향 없음) | TEXT(본문 수정) | SCRIPT(스크립트 수정) | BOTH | OBSOLETE(폐기) | UNKNOWN(판정 못 함), 확률, 영향 준 변경 항목(area). ' +
       '백그라운드로 진행되며 바로 analysis id와 total을 돌려줍니다. get_impact_analysis로 done/total과 항목을 확인하세요. 판정은 이 키 계정의 결정 모델로 하며, 없으면 설치 기본값, 그것도 없으면 FAILED가 됩니다. ' +
-      '확신도가 그 사람의 자동 반영 임계값 아래인 항목은 NEEDS_HUMAN으로 시작합니다.',
+      '확신도가 그 사람의 자동 반영 임계값 아래인 항목은 NEEDS_HUMAN으로 시작합니다. 프로젝트에 진행 중인 분석이 있으면 409(code ALREADY_RUNNING, runningId)로 거절되니 그것이 끝난 뒤 시작하세요.',
     inputSchema: {
       title: z.string().describe('분석 이름 (예: "결제 화면 개편 2026-10-08")'),
       changeSummary: z.string().describe('무엇이 바뀌었는지 페이지/영역별로 적은 마크다운 요약 (최대 20,000자)'),

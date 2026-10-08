@@ -1201,6 +1201,53 @@ server.registerTool(
   async () => textResult(await callApi('/summary'))
 );
 
+server.registerTool(
+  'get_decision_config',
+  {
+    title: '결정 모델 설정 조회',
+    description:
+      '이 프로젝트의 조직에 결정 모델(System One - TypeSafe Jev, Ollama clef/tev1/nimble 등)이 설정되어 있는지, 텍스트/이미지 판정에 ' +
+      '어떤 모델을 쓰는지, 이미지 입력이 가능한지(imageVision), 자동 반영 확신도 임계값(autoThreshold)을 조회합니다. ' +
+      'decide 호출 전에 확인하거나, 결정 모델이 필요한 기능(데이터 주도 검증, 변경 영향 분석)을 보여줄지 정할 때 씁니다.',
+    inputSchema: {},
+  },
+  async () => textResult(await callApi('/decide/config'))
+);
+
+server.registerTool(
+  'decide',
+  {
+    title: '결정 모델에 질문 (System One)',
+    description:
+      '조직의 결정 모델에 상태(state)와 타입이 정해진 질문들을 보내 질문마다 타입 있는 답과 확률을 받습니다. 텍스트를 생성하지 ' +
+      '않고 분류·판정·채점만 합니다 - 수백 건을 빠르고 싸게 판정해야 할 때 LLM 대신 쓰세요. 질문 타입: choice(선택지 2~26개 중 ' +
+      '하나, probabilities/confidence 포함), noul(참일 확률 0~1), score(순서 있는 단계 2~26개 중 위치). 한 번에 최대 64개 질문. ' +
+      '응답의 확률이 autoThreshold(get_decision_config) 이상이면 자동 반영, 그 사이면 사람 검토 대상으로 다루세요. ' +
+      '결정 모델이 설정되지 않은 조직에서는 404가 납니다.',
+    inputSchema: {
+      state: z
+        .union([z.string(), z.record(z.any()), z.array(z.any())])
+        .describe('판정 대상 상태 - 문자열, 또는 JSON 객체/배열 (예: { expected: {...}, observed: {...} })'),
+      questions: z
+        .record(
+          z.object({
+            type: z.enum(['choice', 'noul', 'score']),
+            instructions: z.string().describe('무엇을 판정할지'),
+            criteria: z
+              .union([z.record(z.string()), z.array(z.string())])
+              .optional()
+              .describe('choice: { 선택지키: 설명 }, noul: { true: "...", false: "..." }, score: [낮은 단계, ..., 높은 단계]'),
+          })
+        )
+        .describe('질문 이름 → 질문. 이름은 응답 answers의 키가 됩니다'),
+      kind: z.enum(['text', 'image']).optional().describe('text(기본) 또는 image - images를 보낼 때는 image'),
+      images: z.array(z.string()).optional().describe('base64 PNG/JPEG/WebP (최대 8장). 조직의 이미지 판정 모델이 vision을 지원할 때만'),
+    },
+  },
+  async ({ state, questions, kind, images }) =>
+    textResult(await callApi('/decide', { method: 'POST', body: JSON.stringify({ state, questions, kind, images }) }))
+);
+
 const transport = new StdioServerTransport();
 await server.connect(transport);
 console.error('[mcp] OTestManager2026 MCP server ready (stdio)');

@@ -635,7 +635,7 @@ server.registerTool(
       'list_test_cases/list_requirements가 반환하는 각 항목의 folderId와 대조하면 어느 폴더에 속하는지 ' +
       '알 수 있습니다(folderId가 null이면 폴더 없이 프로젝트 최상위에 바로 담긴 항목).',
     inputSchema: {
-      kind: z.enum(['CASE', 'REQUIREMENT', 'DATASET']).nullish().describe('CASE(기본값)=테스트 케이스 폴더 트리, REQUIREMENT=요구사항 폴더 트리'),
+      kind: z.enum(['CASE', 'REQUIREMENT']).nullish().describe('CASE(기본값)=테스트 케이스 폴더 트리, REQUIREMENT=요구사항 폴더 트리'),
     },
   },
   async ({ kind } = {}) => textResult(await callApi(`/folders?kind=${kind === 'REQUIREMENT' ? 'REQUIREMENT' : 'CASE'}`))
@@ -1050,7 +1050,7 @@ server.registerTool(
       'attach_automation_script로 첨부할 스크립트를 작성하기 전에 호출하세요. 각 종류(kind)별 파일 형식, ' +
       '작성 규칙, 실제 동작하는 예시 스크립트를 반환합니다. kind를 생략하면 전체 개요를 반환합니다.',
     inputSchema: {
-      kind: z.enum(['NODE_TS', 'JMETER', 'POSTMAN', 'PYTHON']).optional().describe('가이드를 볼 스크립트 종류 (생략 시 전체 개요)'),
+      kind: z.enum(['NODE_TS', 'JMETER', 'POSTMAN', 'PYTHON', 'DATASET']).optional().describe('가이드를 볼 스크립트 종류 (생략 시 전체 개요). DATASET=데이터셋이 붙은 케이스의 행 실행 규칙'),
     },
   },
   async ({ kind }) => textResult(kind ? SCRIPT_GUIDES[kind] : SCRIPT_GUIDES.OVERVIEW)

@@ -1206,7 +1206,7 @@ server.registerTool(
   {
     title: '결정 모델 설정 조회',
     description:
-      '이 프로젝트의 조직에 결정 모델(System One - TypeSafe Jev, Ollama clef/tev1/nimble 등)이 설정되어 있는지, 텍스트/이미지 판정에 ' +
+      '이 프로젝트의 조직에 결정 모델(System One)이 설정되어 있는지, 텍스트/이미지 판정에 ' +
       '어떤 모델을 쓰는지, 이미지 입력이 가능한지(imageVision), 자동 반영 확신도 임계값(autoThreshold)을 조회합니다. ' +
       'decide 호출 전에 확인하거나, 결정 모델이 필요한 기능(데이터 주도 검증, 변경 영향 분석)을 보여줄지 정할 때 씁니다.',
     inputSchema: {},

@@ -200,7 +200,8 @@ const SCRIPT_GUIDES = {
     '- .ts → NODE_TS: 순수 Node.js, Playwright(브라우저), Appium(모바일, webdriverio), OWASP ZAP(보안 스캔) 스크립트 모두 이 확장자.\n' +
     '- .jmx → JMETER: JMeter 부하테스트 (JMeter GUI/CLI로 만든 테스트 플랜 XML).\n' +
     '- .json → POSTMAN: Postman 컬렉션 export (v2.1 권장).\n' +
-    '- .py → PYTHON: Python 스크립트 — Selenium(웹), Appium Python 클라이언트(모바일), requests(API).\n\n' +
+    '- .py → PYTHON: Python 스크립트 — Selenium(웹), Appium Python 클라이언트(모바일), requests(API).\n' +
+    '- 데이터셋이 붙은 케이스(데이터 주도)는 종류와 무관하게 행마다 실행되며 판정 대신 관측만 출력합니다 → get_automation_script_guide({ kind: "DATASET" }).\n\n' +
     '**모든 스크립트는 맨 위에 실제 사용하는 자동화 엔진(Playwright / Appium / OWASP ZAP / 순수 Node.js / ' +
     'JMeter / Postman / Selenium(Python))을 명시하는 표시를 남겨야 합니다** — 특히 .ts는 확장자만으로는 Playwright인지 ' +
     'Appium인지 ZAP인지 순수 Node.js인지 구분이 안 되므로 필수입니다. 형식은 종류별 가이드 참고 ' +
@@ -218,6 +219,52 @@ const SCRIPT_GUIDES = {
     '확인; 없는 컴패니언에는 실행을 보내지 않습니다). 종류별 상세 작성 규칙과 예시는 ' +
     'get_automation_script_guide({ kind })로 조회하세요 — kind는 "NODE_TS", "JMETER", "POSTMAN", "PYTHON" 중 하나입니다.',
 
+
+  DATASET:
+    '## 데이터셋 스크립트 (데이터 주도 케이스)\n\n' +
+    '케이스에 데이터셋(set_case_dataset)이 붙어 있으면 OTM Companion 이 **스크립트를 행마다 새 프로세스로** 실행합니다. ' +
+    '스크립트는 한 번만 쓰고, 행의 값은 환경 변수로 받습니다:\n' +
+    '- `OTM_DATA_ROW` — 행 전체 JSON (예: {"_id":"r0001","sku":"A-100","name":"...","price":"129000","image":"a100.jpg"})\n' +
+    '- `OTM_DATA_ROW_INDEX` — 0부터 시작하는 행 번호, `OTM_DATA_ROW_KEY` — 키 열 값\n' +
+    '테스트 값(`OTM_VAR_*`)과 헤드리스 설정은 평소와 같습니다.\n\n' +
+    '**스크립트는 판정하지 않고 관측만 합니다.** 기대값과 비교하거나 단언(expect)하지 마세요 — 비교는 서버가 결정 모델로 합니다 ' +
+    '(표기 차이: ₩129,000 vs 129000, 상품명 옵션 표기 등은 서버가 같은 것으로 판정). 스크립트가 할 일은 행의 입력(URL·검색어 등 compare=ignore 열)으로 ' +
+    '화면을 열고, 비교 대상 열(compare=exact|semantic)마다 **보이는 값을 읽어** stdout 마지막 줄에 다음 한 줄로 출력하는 것입니다:\n' +
+    '`OTM_OBSERVED: {"name":"보이는 상품명","price":"₩129,000","image":{"src":"/cdn/a100_800.webp","alt":"...","w":800,"h":800,"loaded":true,"screenshot":"<base64 PNG, 선택>"}}`\n' +
+    '- 텍스트/금액/숫자/URL/enum 열: 화면에 보이는 문자열 그대로 (정규화하지 마세요).\n' +
+    '- image 열: 객체 {src, alt, w(naturalWidth), h, loaded(complete && naturalWidth>0)}; 가능하면 그 요소의 스크린샷을 `screenshot`에 base64로 — 조직의 이미지 판정 모델이 이미지를 보면 직접 비교에 쓰입니다.\n' +
+    '- 값을 찾지 못한 열은 빼거나 null로 두세요 (서버가 "관측 없음"으로 불일치 처리).\n' +
+    '종료 코드 0 = 관측 성공(판정은 서버), 0이 아닌 코드 = 이 행을 관측조차 못 함(페이지를 못 열었다 등) → 행 ERROR. ' +
+    '실패 시 전체 페이지 스크린샷을 남기면 행 증적으로 첨부됩니다.\n\n' +
+    'Playwright 예시:\n' +
+    '```ts\n' +
+    '// Engine: Playwright\n' +
+    "import { chromium } from 'playwright';\n" +
+    'const row = JSON.parse(process.env.OTM_DATA_ROW!);\n' +
+    "const headless = process.env.OTM_HEADLESS !== 'false';\n" +
+    'const browser = await chromium.launch({ headless });\n' +
+    'const page = await browser.newPage();\n' +
+    'try {\n' +
+    '  await page.goto(`${process.env.OTM_VAR_BASE_URL}/products/${row.sku}`, { waitUntil: \'networkidle\' });\n' +
+    "  const name = (await page.locator('h1.product-title').textContent())?.trim() ?? null;\n" +
+    "  const price = (await page.locator('.price').first().textContent())?.trim() ?? null;\n" +
+    "  const img = page.locator('.gallery img').first();\n" +
+    "  const image = (await img.count()) ? {\n" +
+    "    src: await img.getAttribute('src'), alt: await img.getAttribute('alt'),\n" +
+    "    w: await img.evaluate((e: HTMLImageElement) => e.naturalWidth), h: await img.evaluate((e: HTMLImageElement) => e.naturalHeight),\n" +
+    "    loaded: await img.evaluate((e: HTMLImageElement) => e.complete && e.naturalWidth > 0),\n" +
+    "    screenshot: (await img.screenshot()).toString('base64'),\n" +
+    '  } : null;\n' +
+    "  console.log('OTM_OBSERVED: ' + JSON.stringify({ name, price, image }));\n" +
+    '} catch (e) {\n' +
+    "  await page.screenshot({ path: `row-${process.env.OTM_DATA_ROW_KEY}.png`, fullPage: true }).catch(() => {});\n" +
+    '  console.error(e);\n' +
+    '  process.exitCode = 1;\n' +
+    '} finally {\n' +
+    '  await browser.close();\n' +
+    '}\n' +
+    '```\n' +
+    '데이터셋의 열 정의(key, kind, compare)는 get_case_dataset으로 확인하고, 행별 결과는 list_run_iterations로, 검토 대기 행은 review_iteration으로 처리합니다.',
   NODE_TS:
     '## NODE_TS (.ts) — Node.js / Playwright / Appium\n\n' +
     'OTM Companion이 자체 Node 런타임으로 직접 실행합니다(타입 표기는 지워서 실행 — enum, namespace는 쓰지 마세요). ' +
@@ -588,7 +635,7 @@ server.registerTool(
       'list_test_cases/list_requirements가 반환하는 각 항목의 folderId와 대조하면 어느 폴더에 속하는지 ' +
       '알 수 있습니다(folderId가 null이면 폴더 없이 프로젝트 최상위에 바로 담긴 항목).',
     inputSchema: {
-      kind: z.enum(['CASE', 'REQUIREMENT']).nullish().describe('CASE(기본값)=테스트 케이스 폴더 트리, REQUIREMENT=요구사항 폴더 트리'),
+      kind: z.enum(['CASE', 'REQUIREMENT', 'DATASET']).nullish().describe('CASE(기본값)=테스트 케이스 폴더 트리, REQUIREMENT=요구사항 폴더 트리'),
     },
   },
   async ({ kind } = {}) => textResult(await callApi(`/folders?kind=${kind === 'REQUIREMENT' ? 'REQUIREMENT' : 'CASE'}`))
@@ -1199,6 +1246,98 @@ server.registerTool(
     inputSchema: {},
   },
   async () => textResult(await callApi('/summary'))
+);
+
+server.registerTool(
+  'get_case_dataset',
+  {
+    title: '테스트 케이스 데이터셋 조회',
+    description:
+      '데이터 주도 케이스에 붙은 데이터셋(열 정의 columns[key,label,kind,compare], 행 rows, 키 열 keyColumn, 동시 실행 행 수 maxParallel)을 가져옵니다. ' +
+      '없으면 404. 스크립트를 쓰기 전에 어떤 열이 비교 대상(compare=exact|semantic)이고 어떤 열이 입력(ignore)인지 확인하세요.',
+    inputSchema: { caseId: z.string().describe('테스트 케이스 ID 또는 케이스 코드') },
+  },
+  async ({ caseId }) => textResult(await callApi(`/test-cases/${encodeURIComponent(caseId)}/dataset`))
+);
+
+server.registerTool(
+  'set_case_dataset',
+  {
+    title: '테스트 케이스 데이터셋 설정 (데이터 주도)',
+    description:
+      '케이스 하나에 데이터셋을 붙여 데이터 주도 케이스로 만듭니다 — 스크립트는 한 번, 실행은 행마다. 예: 상품 300개 등록 검증은 케이스 하나 + 300행. ' +
+      '열마다 kind(text|money|number|url|image|enum)와 compare(exact=문자열 완전 일치, semantic=결정 모델이 같은 뜻인지 판정, ignore=입력으로만 쓰고 비교 안 함)를 정합니다. ' +
+      '행은 열 key를 키로 하는 객체이며 값은 문자열(기대값)입니다. keyColumn은 행을 사람이 알아보는 열(상품코드 등)로 모든 행에서 고유해야 합니다. ' +
+      '최대 2000행·40열. 기존 데이터셋은 버전으로 보관되고 교체됩니다. 스크립트 작성 규칙은 get_automation_script_guide({ kind: "DATASET" }).',
+    inputSchema: {
+      caseId: z.string().describe('테스트 케이스 ID 또는 케이스 코드'),
+      columns: z
+        .array(
+          z.object({
+            key: z.string().describe('열 키 (영문자/숫자/_, 스크립트가 row.<key>로 읽음)'),
+            label: z.string().optional().describe('화면 표시 이름'),
+            kind: z.enum(['text', 'money', 'number', 'url', 'image', 'enum']).optional().describe('기본 text'),
+            compare: z.enum(['exact', 'semantic', 'ignore']).optional().describe('기본 semantic'),
+          })
+        )
+        .describe('열 정의'),
+      rows: z.array(z.record(z.any())).describe('행 배열. 각 행은 { 열키: 기대값 }'),
+      keyColumn: z.string().describe('행을 식별하는 열 키'),
+      maxParallel: z.number().int().min(1).max(8).optional().describe('컴패니언이 동시에 실행할 행 수 (기본 1)'),
+    },
+  },
+  async ({ caseId, ...body }) =>
+    textResult(await callApi(`/test-cases/${encodeURIComponent(caseId)}/dataset`, { method: 'PUT', body: JSON.stringify(body) }))
+);
+
+server.registerTool(
+  'remove_case_dataset',
+  {
+    title: '테스트 케이스 데이터셋 제거',
+    description: '케이스의 데이터셋을 제거해 일반 케이스로 되돌립니다. 스크립트는 그대로 남습니다.',
+    inputSchema: { caseId: z.string().describe('테스트 케이스 ID 또는 케이스 코드') },
+  },
+  async ({ caseId }) => textResult(await callApi(`/test-cases/${encodeURIComponent(caseId)}/dataset`, { method: 'DELETE' }))
+);
+
+server.registerTool(
+  'list_run_iterations',
+  {
+    title: '데이터 주도 실행의 행별 결과 조회',
+    description:
+      '데이터 주도 케이스의 자동 실행(runId) 행별 결과를 가져옵니다: 집계(rollup: passed/failed/error/review/pending)와 행 목록(rowIndex, rowKey, status, ' +
+      'observed(스크립트가 본 값), verdicts(열별 expected/observed/match/probability/decidedBy), log, artifacts). status로 거를 수 있습니다 (FAILED, REVIEW ...). ' +
+      '실패 행을 결함으로 등록할 때는 같은 열이 여러 행에서 틀린 경우(가격이 전부 0원 등) 결함 하나로 묶고 rowKey 목록을 적으세요. REVIEW 행은 사람의 몫이며, ' +
+      '분석 옵션에서 허용된 경우에만 review_iteration으로 확정하세요.',
+    inputSchema: {
+      runId: z.string().describe('run_case_automation / get_automation_run_status 의 runId'),
+      status: z.enum(['PENDING', 'RUNNING', 'PASSED', 'FAILED', 'ERROR', 'REVIEW']).optional().describe('이 상태의 행만'),
+    },
+  },
+  async ({ runId, status }) => textResult(await callApi(`/automation-runs/${encodeURIComponent(runId)}/iterations${qs({ status })}`))
+);
+
+server.registerTool(
+  'review_iteration',
+  {
+    title: '검토 대기 행 확정',
+    description:
+      '결정 모델이 확신하지 못해 REVIEW로 남은 행(또는 그 행의 열 하나)을 일치/불일치로 확정합니다. 모든 행이 확정되면 실행과 회차 결과가 PASSED/FAILED로 정해집니다. ' +
+      '계정 API 키로만 가능하며, 확정한 사람으로 기록됩니다. 근거(관측값과 기대값) 없이 확정하지 마세요.',
+    inputSchema: {
+      runId: z.string().describe('실행 runId'),
+      iterationId: z.string().describe('list_run_iterations 의 rows[].id'),
+      match: z.boolean().describe('true = 기대값과 일치(PASS 쪽), false = 불일치(FAIL 쪽)'),
+      column: z.string().optional().describe('열 하나만 확정할 때 그 열 키. 생략하면 미확정 열 전부'),
+    },
+  },
+  async ({ runId, iterationId, match, column }) =>
+    textResult(
+      await callApi(`/automation-runs/${encodeURIComponent(runId)}/iterations/${encodeURIComponent(iterationId)}/review`, {
+        method: 'POST',
+        body: JSON.stringify({ match, column }),
+      })
+    )
 );
 
 server.registerTool(

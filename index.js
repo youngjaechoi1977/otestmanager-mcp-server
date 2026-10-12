@@ -140,6 +140,9 @@ const WRITE_TOOLS = new Set([
   'create_session', 'add_case_to_session', 'update_case_requirements',
   'record_result', 'run_case_automation', 'cancel_automation_run',
   'create_bug', 'update_bug', 'link_bug_to_result', 'attach_bug_evidence', 'attach_run_artifact_to_bug',
+  'set_case_dataset', 'remove_case_dataset', 'review_iteration',
+  'run_impact_analysis', 'resolve_impact_item',
+  // not `decide`: a verdict changes nothing, and the server lets a read-only key ask for one.
 ]);
 
 // Tools that don't touch a project, and so take no `project` argument.
@@ -232,7 +235,7 @@ const SCRIPT_GUIDES = {
     '화면을 열고, 비교 대상 열(compare=exact|semantic)마다 **보이는 값을 읽어** stdout 마지막 줄에 다음 한 줄로 출력하는 것입니다:\n' +
     '`OTM_OBSERVED: {"name":"보이는 상품명","price":"₩129,000","image":{"src":"/cdn/a100_800.webp","alt":"...","w":800,"h":800,"loaded":true,"screenshot":"<base64 PNG, 선택>"}}`\n' +
     '- 텍스트/금액/숫자/URL/enum 열: 화면에 보이는 문자열 그대로 (정규화하지 마세요).\n' +
-    '- image 열: 객체 {src, alt, w(naturalWidth), h, loaded(complete && naturalWidth>0)}; 가능하면 그 요소의 스크린샷을 `screenshot`에 base64로 — 조직의 이미지 판정 모델이 이미지를 보면 직접 비교에 쓰입니다.\n' +
+    '- image 열: 객체 {src, alt, w(naturalWidth), h, loaded(complete && naturalWidth>0)}; 가능하면 그 요소의 스크린샷을 `screenshot`에 base64로 — 실행을 요청한 사람의 이미지 판정 모델이 이미지를 보면 직접 비교에 쓰입니다.\n' +
     '- 값을 찾지 못한 열은 빼거나 null로 두세요 (서버가 "관측 없음"으로 불일치 처리).\n' +
     '종료 코드 0 = 관측 성공(판정은 서버), 0이 아닌 코드 = 이 행을 관측조차 못 함(페이지를 못 열었다 등) → 행 ERROR. ' +
     '실패 시 전체 페이지 스크린샷을 남기면 행 증적으로 첨부됩니다.\n\n' +
@@ -1441,7 +1444,7 @@ server.registerTool(
   {
     title: '결정 모델 설정 조회',
     description:
-      '이 프로젝트의 조직에 결정 모델(System One)이 설정되어 있는지, 텍스트/이미지 판정에 ' +
+      '이 키 계정의 결정 모델(System One; 계정 메뉴의 내 결정 모델, 없으면 설치 기본값)이 설정되어 있는지, 텍스트/이미지 판정에 ' +
       '어떤 모델을 쓰는지, 이미지 입력이 가능한지(imageVision), 자동 반영 확신도 임계값(autoThreshold)을 조회합니다. ' +
       'decide 호출 전에 확인하거나, 결정 모델이 필요한 기능(데이터 주도 검증, 변경 영향 분석)을 보여줄지 정할 때 씁니다.',
     inputSchema: {},
@@ -1454,11 +1457,11 @@ server.registerTool(
   {
     title: '결정 모델에 질문 (System One)',
     description:
-      '조직의 결정 모델에 상태(state)와 타입이 정해진 질문들을 보내 질문마다 타입 있는 답과 확률을 받습니다. 텍스트를 생성하지 ' +
+      '이 키 계정의 결정 모델에 상태(state)와 타입이 정해진 질문들을 보내 질문마다 타입 있는 답과 확률을 받습니다. 텍스트를 생성하지 ' +
       '않고 분류·판정·채점만 합니다 - 수백 건을 빠르고 싸게 판정해야 할 때 LLM 대신 쓰세요. 질문 타입: choice(선택지 2~26개 중 ' +
       '하나, probabilities/confidence 포함), noul(참일 확률 0~1), score(순서 있는 단계 2~26개 중 위치). 한 번에 최대 64개 질문. ' +
       '응답의 확률이 autoThreshold(get_decision_config) 이상이면 자동 반영, 그 사이면 사람 검토 대상으로 다루세요. ' +
-      '결정 모델이 설정되지 않은 조직에서는 404가 납니다.',
+      '이 계정에도 설치 기본값에도 결정 모델이 없으면 404가 납니다.',
     inputSchema: {
       state: z
         .union([z.string(), z.record(z.any()), z.array(z.any())])
@@ -1476,7 +1479,7 @@ server.registerTool(
         )
         .describe('질문 이름 → 질문. 이름은 응답 answers의 키가 됩니다'),
       kind: z.enum(['text', 'image']).optional().describe('text(기본) 또는 image - images를 보낼 때는 image'),
-      images: z.array(z.string()).optional().describe('base64 PNG/JPEG/WebP (최대 8장). 조직의 이미지 판정 모델이 vision을 지원할 때만'),
+      images: z.array(z.string()).optional().describe('base64 PNG/JPEG/WebP (최대 8장). 이 키 계정의 이미지 판정 모델이 vision을 지원할 때만(get_decision_config의 imageVision)'),
     },
   },
   async ({ state, questions, kind, images }) =>

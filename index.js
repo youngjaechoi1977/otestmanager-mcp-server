@@ -1257,7 +1257,8 @@ server.registerTool(
     title: '테스트 케이스 데이터셋 조회',
     description:
       '데이터 주도 케이스에 붙은 데이터셋(열 정의 columns[key,label,kind,compare], 행 rows, 키 열 keyColumn, 동시 실행 행 수 maxParallel)을 가져옵니다. ' +
-      '없으면 404. 스크립트를 쓰기 전에 어떤 열이 비교 대상(compare=exact|semantic)이고 어떤 열이 입력(ignore)인지 확인하세요.',
+      '없으면 404. 스크립트를 쓰기 전에 어떤 열이 비교 대상(compare=exact|semantic)이고 어떤 열이 입력(ignore)인지 확인하세요. ' +
+      'images는 기대 사진이 붙은 셀의 목록 { [행 _id]: { [열 키]: { mimeType, size } } } 입니다 — 사진 바이트는 들어 있지 않습니다(get_case_dataset_image).',
     inputSchema: { caseId: z.string().describe('테스트 케이스 ID 또는 케이스 코드') },
   },
   async ({ caseId }) => textResult(await callApi(`/test-cases/${encodeURIComponent(caseId)}/dataset`))
@@ -1271,7 +1272,10 @@ server.registerTool(
       '케이스 하나에 데이터셋을 붙여 데이터 주도 케이스로 만듭니다 — 스크립트는 한 번, 실행은 행마다. 예: 상품 300개 등록 검증은 케이스 하나 + 300행. ' +
       '열마다 kind(text|money|number|url|image|enum)와 compare(exact=문자열 완전 일치, semantic=결정 모델이 같은 뜻인지 판정, ignore=입력으로만 쓰고 비교 안 함)를 정합니다. ' +
       '행은 열 key를 키로 하는 객체이며 값은 문자열(기대값)입니다. keyColumn은 행을 사람이 알아보는 열(상품코드 등)로 모든 행에서 고유해야 합니다. ' +
-      '최대 2000행·40열. 기존 데이터셋은 버전으로 보관되고 교체됩니다. 스크립트 작성 규칙은 get_automation_script_guide({ kind: "DATASET" }).',
+      'image 열의 셀은 { file: "파일명", image: "data:image/jpeg;base64,..." } 객체로 쓸 수 있습니다 — 기획서의 기대 사진을 붙이면 결정 모델이 파일명 대신 ' +
+      '요소 스크린샷과 사진을 직접 비교합니다(비전 모델일 때). 셀은 file 문자열로 저장되고 사진은 따로 보관됩니다(사진 1장 300KB, 데이터셋 전체 12MB까지, JPEG/PNG/WebP). ' +
+      '문자열 셀은 그 행(_id)·열에 이미 있는 사진을 유지하고, image 없는 객체 { file }는 사진을 지웁니다. ' +
+      '최대 2000행·40열. 기존 데이터셋은 버전으로 보관되고 교체됩니다(사진은 버전에 들어가지 않음). 스크립트 작성 규칙은 get_automation_script_guide({ kind: "DATASET" }).',
     inputSchema: {
       caseId: z.string().describe('테스트 케이스 ID 또는 케이스 코드'),
       columns: z
@@ -1284,13 +1288,29 @@ server.registerTool(
           })
         )
         .describe('열 정의'),
-      rows: z.array(z.record(z.any())).describe('행 배열. 각 행은 { 열키: 기대값 }'),
+      rows: z.array(z.record(z.any())).describe('행 배열. 각 행은 { 열키: 기대값 }. image 열은 { file, image } 객체도 됩니다'),
       keyColumn: z.string().describe('행을 식별하는 열 키'),
       maxParallel: z.number().int().min(1).max(8).optional().describe('컴패니언이 동시에 실행할 행 수 (기본 1)'),
     },
   },
   async ({ caseId, ...body }) =>
     textResult(await callApi(`/test-cases/${encodeURIComponent(caseId)}/dataset`, { method: 'PUT', body: JSON.stringify(body) }))
+);
+
+server.registerTool(
+  'get_case_dataset_image',
+  {
+    title: '데이터셋 셀의 기대 사진 가져오기',
+    description:
+      'get_case_dataset의 images에 나오는 셀 하나의 기대 사진을 base64(contentBase64, mimeType, size)로 가져옵니다. 없으면 404.',
+    inputSchema: {
+      caseId: z.string().describe('테스트 케이스 ID 또는 케이스 코드'),
+      rowId: z.string().describe('행의 _id'),
+      columnKey: z.string().describe('image 열의 키'),
+    },
+  },
+  async ({ caseId, rowId, columnKey }) =>
+    textResult(await callApi(`/test-cases/${encodeURIComponent(caseId)}/dataset/images/${encodeURIComponent(rowId)}/${encodeURIComponent(columnKey)}`))
 );
 
 server.registerTool(

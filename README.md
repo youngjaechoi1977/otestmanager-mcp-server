@@ -123,6 +123,12 @@ curl -H "X-Api-Key: otm_u_xxx" https://<서버>/api/v1/projects/<ID 또는 코�
 | `cancel_automation_run` | 아직 끝나지 않은 자동 실행(대기 중이거나 실행 중)을 중단 — 실행 탭의 중단 버튼과 같음 |
 | `get_automation_run_artifact` | 실행 결과의 첨부 파일 내용 가져오기 — 이미지는 이미지로, 그 밖의 파일은 base64로 (최대 10MB) |
 | `list_companions` | 이 프로젝트를 실행할 수 있는 OTM Companion의 연결 여부·실행 가능한 스크립트 종류(capabilities)·이 프로젝트용 테스트 값 키(`testValueKeys`, 값 없음) 조회 — `run_case_automation` 호출 전 미리 확인용. 예전 이름 `list_runners`도 같은 동작 |
+| `get_case_dataset` | 데이터 주도 케이스의 데이터셋(열 정의, 행, 키 열, maxParallel) 조회. `images`는 기대 사진이 붙은 셀의 목록 `{ [행 _id]: { [열 키]: { mimeType, size } } }` |
+| `set_case_dataset` | 케이스에 데이터셋을 붙여 데이터 주도 케이스로 설정 (최대 2000행·40열, 기존 데이터셋은 버전으로 보관). `image` 열의 셀은 `{ file, image }` 객체로 기획서의 기대 사진(JPEG/PNG/WebP data URL 또는 base64, 1장 300KB·전체 12MB)을 붙일 수 있어 결정 모델이 요소 스크린샷과 사진을 직접 비교. 문자열 셀은 이미 있는 사진을 유지 |
+| `get_case_dataset_image` | 데이터셋 셀 하나의 기대 사진을 base64로 가져오기 |
+| `remove_case_dataset` | 케이스의 데이터셋 제거 (스크립트는 그대로) |
+| `list_run_iterations` | 데이터 주도 실행의 행별 결과(집계, 행마다 observed·열별 verdicts·log·artifacts) 조회, `status`로 필터 |
+| `review_iteration` | 결정 모델이 확신하지 못해 REVIEW로 남은 행(또는 열 하나)을 일치/불일치로 확정 — 계정 API 키만 |
 | `get_decision_config` | 이 프로젝트의 조직에 결정 모델(System One)이 설정되어 있는지, 텍스트/이미지 판정 모델, 이미지 입력 가능 여부(`imageVision`), 자동 반영 확신도(`autoThreshold`) 조회 |
 | `decide` | 조직의 결정 모델에 상태(`state`)와 타입이 정해진 질문들(`choice`·`noul`·`score`, 한 번에 최대 64개)을 보내 질문마다 타입 있는 답과 확률을 받음 — 텍스트 생성 없이 분류·판정·채점만. 수백 건을 빠르고 싸게 판정할 때 LLM 대신 사용. 읽기 전용 키로도 호출 가능. 결정 모델이 없는 조직은 404 |
 | `create_bug` | 결함 등록 (선택적으로 `roundId`를 넘기면 실행 사이클도 함께 기록) |

@@ -717,7 +717,8 @@ server.registerTool(
     title: '테스트 케이스 내용 수정',
     description:
       '테스트 케이스의 제목/목적/사전조건/입력값/기대결과/우선순위/스텝을 수정합니다. 전달한 필드만 ' +
-      '바뀌고 나머지는 그대로 유지됩니다. 자동화 스크립트는 attach_automation_script로 별도 관리합니다.',
+      '바뀌고 나머지는 그대로 유지됩니다. folderId 또는 category로 케이스를 다른 폴더로 옮길 수도 있습니다 ' +
+      '(옮기기만 하면 버전은 올라가지 않습니다). 자동화 스크립트는 attach_automation_script로 별도 관리합니다.',
     inputSchema: {
       caseId: z.string().describe('list_test_cases로 조회한 테스트 케이스 ID'),
       title: z.string().optional(),
@@ -727,6 +728,8 @@ server.registerTool(
       expectedResult: z.string().optional(),
       priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
       steps: z.array(z.object({ action: z.string(), expected: z.string() })).optional().describe('테스트 스텝 목록 (전달 시 전체 교체)'),
+      folderId: z.string().nullable().optional().describe('옮길 폴더 ID (list_folders로 조회). null이면 최상위(폴더 없음)'),
+      category: z.string().optional().describe('옮길 최상위 폴더 이름 — 없으면 새로 만듭니다(create_test_case의 category와 같은 규칙). folderId와 함께 주면 folderId가 우선'),
     },
   },
   async ({ caseId, ...patch }) => textResult(await callApi(`/test-cases/${encodeURIComponent(caseId)}`, { method: 'PATCH', body: JSON.stringify(patch) }))

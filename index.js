@@ -267,6 +267,24 @@ const SCRIPT_GUIDES = {
     '  await browser.close();\n' +
     '}\n' +
     '```\n' +
+    '**로그인이 필요한 사이트 - 로그인 상태 재사용.** 스크립트에 `OTM_STORAGE_STATE`가 보이면 컴패니언은 그 환경 변수에 파일 경로를 넣고 ' +
+    '**첫 행을 먼저 혼자** 실행한 뒤 나머지 행을 병렬로 돕니다. 그 파일이 있으면 `browser.newContext({ storageState })`로 로그인된 상태에서 ' +
+    '시작하고, 없으면(첫 행) 로그인한 뒤 `context.storageState({ path })`로 저장하세요. 파일은 실행이 끝나면 컴패니언이 지웁니다.\n' +
+    '```ts\n' +
+    "import fs from 'node:fs';\n" +
+    'const statePath = process.env.OTM_STORAGE_STATE;\n' +
+    'const hasState = !!statePath && fs.existsSync(statePath);\n' +
+    'const context = await browser.newContext(hasState ? { storageState: statePath } : {});\n' +
+    'const page = await context.newPage();\n' +
+    'if (!hasState) {\n' +
+    '  await page.goto(`${process.env.OTM_VAR_BASE_URL}/login`);\n' +
+    "  await page.fill('#email', process.env.OTM_VAR_USER_USERNAME!);\n" +
+    "  await page.fill('#password', process.env.OTM_VAR_USER_PASSWORD!);\n" +
+    "  await page.click('button[type=submit]');\n" +
+    "  await page.waitForURL('**/home');\n" +
+    '  if (statePath) await context.storageState({ path: statePath });\n' +
+    '}\n' +
+    '```\n' +
     '데이터셋의 열 정의(key, kind, compare)는 get_case_dataset으로 확인하고, 행별 결과는 list_run_iterations로, 검토 대기 행은 review_iteration으로 처리합니다.',
   NODE_TS:
     '## NODE_TS (.ts) — Node.js / Playwright / Appium\n\n' +

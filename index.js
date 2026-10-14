@@ -302,6 +302,8 @@ const SCRIPT_GUIDES = {
     "console.log('PASS: 사이트가 정상 응답합니다.');\n" +
     '```\n\n' +
     '### Playwright (실제 브라우저)\n' +
+    "`expect`는 'playwright' 패키지에 없습니다(@playwright/test 전용) - `import { expect } from 'playwright'`는 " +
+    '실행 즉시 SyntaxError로 끝납니다. 검증은 `node:assert`나 if/throw로 하세요.\n' +
     "기본은 headless입니다. 사람이 실행 탭에서 '브라우저 표시'를 켠 실행에 한해 환경변수 " +
     'OTM_HEADLESS=false가 전달되니, 스크립트가 이 값을 읽어 반영해야 합니다.\n' +
     '```ts\n' +

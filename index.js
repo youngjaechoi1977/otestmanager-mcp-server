@@ -1428,6 +1428,9 @@ server.registerTool(
     title: '변경 영향 분석 결과 조회',
     description:
       '분석의 진행(status RUNNING|DONE|FAILED, done/total), 요약(summary: 종류별·처리별 개수), 항목 목록(items: testCase 코드·제목·스크립트 유무, impact, probability, area, distribution, resolution, note)을 가져옵니다. ' +
+      '**impact와 probability는 유효한 분류입니다** — 사람이 분류를 바꾼 항목은 impactSource가 "HUMAN"이고 impact가 사람의 분류(probability 1), ' +
+      'modelImpact/modelProbability가 모델의 원래 판정, reclassifiedBy/reclassifiedAt이 바꾼 사람·시각입니다(모델 판정 그대로면 impactSource "MODEL", modelImpact null). ' +
+      '사람의 분류를 모델 판정보다 우선하세요. 요약 개수도 유효한 분류 기준입니다. ' +
       'impact/resolution으로 거를 수 있습니다. 수정이 필요한 항목(TEXT/SCRIPT/BOTH, resolution OPEN|NEEDS_HUMAN)부터 처리하세요. UNAFFECTED는 자동으로 닫히지 않으니 틀린 "영향 없음"이 없는지 훑어볼 때 씁니다.',
     inputSchema: {
       analysisId: z.string().describe('run_impact_analysis 가 돌려준 id'),
@@ -1466,16 +1469,20 @@ server.registerTool(
     title: '변경 영향 항목 처리',
     description:
       '항목의 처리 상태를 바꿉니다: APPLIED(케이스/스크립트를 고쳤음 - note에 무엇을 했는지), DISMISSED(해당 없음·사람이 영향 없다고 판단), OPEN/NEEDS_HUMAN(되돌림). ' +
-      '실제 수정은 update_test_case / attach_automation_script 로 한 뒤 여기로 기록하세요.',
+      '실제 수정은 update_test_case / attach_automation_script 로 한 뒤 여기로 기록하세요. ' +
+      'impact를 주면 항목의 분류를 바꿉니다(사람이 확인한 분류일 때만 - 모델 판정은 modelImpact로 남고 impactSource가 HUMAN이 됨, NEEDS_HUMAN이던 항목은 OPEN으로). ' +
+      'impact: null은 모델 판정으로 되돌립니다. resolution과 impact 중 하나는 있어야 합니다.',
     inputSchema: {
       analysisId: z.string(),
       itemId: z.string().describe('get_impact_analysis 의 items[].id'),
-      resolution: z.enum(['OPEN', 'APPLIED', 'DISMISSED', 'NEEDS_HUMAN']),
+      resolution: z.enum(['OPEN', 'APPLIED', 'DISMISSED', 'NEEDS_HUMAN']).optional(),
+      impact: z.enum(['UNAFFECTED', 'TEXT', 'SCRIPT', 'BOTH', 'OBSOLETE']).nullable().optional()
+        .describe('사람이 정한 분류 (null = 모델 판정으로 되돌림)'),
       note: z.string().optional().describe('처리 내용 (예: "스크립트 v7로 갱신", "폐기 후보 폴더로 이동")'),
     },
   },
-  async ({ analysisId, itemId, resolution, note }) =>
-    textResult(await callApi(`/impact-analyses/${encodeURIComponent(analysisId)}/items/${encodeURIComponent(itemId)}`, { method: 'PATCH', body: JSON.stringify({ resolution, note }) }))
+  async ({ analysisId, itemId, resolution, impact, note }) =>
+    textResult(await callApi(`/impact-analyses/${encodeURIComponent(analysisId)}/items/${encodeURIComponent(itemId)}`, { method: 'PATCH', body: JSON.stringify({ resolution, impact, note }) }))
 );
 
 server.registerTool(

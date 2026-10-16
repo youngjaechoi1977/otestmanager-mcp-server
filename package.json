@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "MCP server exposing OTestManager2026 project data (test cases, sessions, results, bugs) to external LLM clients via an account API key (every tool names its project) or a legacy project key.",
+  "description": "MCP server exposing OTestManager project data (test cases, sessions, results, bugs) to external LLM clients via an account API key (every tool names its project) or a legacy project key.",
   "bin": {
     "otestmanager-mcp": "./index.js"
   },

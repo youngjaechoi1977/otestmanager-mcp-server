@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// OTestManager2026 MCP server — a thin adapter exposing OTestManager2026 projects' requirements,
+// OTestManager MCP server — a thin adapter exposing OTestManager projects' requirements,
 // test cases, sessions, execution results, and bugs to external LLM clients (e.g. Claude
 // Desktop, Claude Code). It holds no state of its own; every tool call just forwards to the
-// OTestManager2026 REST API.
+// OTestManager REST API.
 //
 // Two kinds of key work here:
 //   - An account key (otm_u_…, issued under 내 API 키) reaches every project its owner can open.
@@ -1544,4 +1544,4 @@ server.registerTool(
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
-console.error('[mcp] OTestManager2026 MCP server ready (stdio)');
+console.error('[mcp] OTestManager MCP server ready (stdio)');

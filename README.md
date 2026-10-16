@@ -70,8 +70,8 @@ npm install
 
 ### 데이터 주도 실행과 변경 영향 분석
 
-QA Copilot이 이 서버로 하는 두 가지 흐름입니다. 둘 다 판정은 **이 키 계정의 결정 모델**(계정 메뉴의 내 결정 모델,
-없으면 설치 기본값)이 맡으므로 `get_decision_config`로 먼저 확인하세요.
+QA Copilot이 이 서버로 하는 두 가지 흐름입니다. 둘 다 판정은 **이 키 계정의 결정 모델**(계정 메뉴의 내 결정 모델.
+설치 기본값은 없고, 프로젝트 키에는 결정 모델이 없음)이 맡으므로 `get_decision_config`로 먼저 확인하세요.
 
 - **데이터 주도 케이스** — `create_test_case`로 케이스를 만들고(또는 기존 케이스에) `set_case_dataset`으로 데이터셋을
   붙입니다: 열마다 `kind`(text·money·number·url·image·enum)와 `compare`(exact·semantic·ignore), 행은 `{ 열키: 기대값 }`,
@@ -124,10 +124,10 @@ curl -H "X-Api-Key: otm_u_xxx" https://<서버>/api/v1/projects/<ID 또는 코�
 | `list_folders` | 프로젝트의 폴더 트리(id/name/parentId 평평한 목록) — `kind`로 테스트 케이스(기본값) 또는 요구사항 트리 선택. `list_test_cases`/`list_requirements`의 `folderId`와 대조해 계층 구조 조립 |
 | `list_test_cases` | 프로젝트의 테스트 케이스 목록 / `q`(키워드), `priority`, `automationScriptKind`, `hasAutomation`으로 검색·필터링. 각 케이스는 `folderId`를 포함 |
 | `create_test_case` | 새 테스트 케이스를 이 프로젝트에 생성. `category`를 지정하면 이 프로젝트의 폴더 트리에서 그 이름의 하위 폴더에 담김(같은 이름 재사용 시 같은 폴더로 모임, 없으면 자동 생성) — 생략하면 최상위에 바로 담김. `requirementIds`를 지정하면 생성과 동시에 해당 요구사항(들)과 매칭됨(프로젝트 레벨). ID는 `<프로젝트코드>-TC-00001` 형식(5자리)으로 자동 채번 |
-| `get_test_case` | 테스트 케이스 하나의 전체 상세 조회 (첨부된 자동화 스크립트 원문, 속한 폴더 `folderId` 포함) |
-| `update_test_case` | 테스트 케이스의 제목/목적/사전조건/입력값/기대결과/우선순위/스텝 수정 (전달한 필드만 변경, 수정 전 내용은 버전 이력으로 보존). `folderId`(list_folders의 ID, `null`이면 최상위) 또는 `category`(최상위 폴더 이름, 없으면 생성; 둘 다 주면 `folderId` 우선)로 다른 폴더로 옮길 수도 있음 — 옮기기만 하면 버전은 그대로 |
+| `get_test_case` | 테스트 케이스 하나의 전체 상세 조회 (첨부된 자동화 스크립트 원문, 속한 폴더 `folderId`, 덮어쓰기 방지용 `version`·`automationScriptVersion` 포함) |
+| `update_test_case` | 테스트 케이스의 제목/목적/사전조건/입력값/기대결과/우선순위/스텝 수정 (전달한 필드만 변경, 수정 전 내용은 버전 이력으로 보존). `folderId`(list_folders의 ID, `null`이면 최상위) 또는 `category`(최상위 폴더 이름, 없으면 생성; 둘 다 주면 `folderId` 우선)로 다른 폴더로 옮길 수도 있음 — 옮기기만 하면 버전은 그대로. `expectedVersion`(get_test_case의 `version`)을 주면 그 사이 바뀌었을 때 아무것도 쓰지 않고 409(`code: CONFLICT`, `currentVersion`·`currentScriptVersion`) |
 | `get_automation_script_guide` | 스크립트 작성 전 참고할 가이드 — kind별(NODE_TS/JMETER/POSTMAN/PYTHON) 작성 규칙 + 실제 동작하는 예시 스크립트 |
-| `attach_automation_script` | 테스트 케이스에 자동화 스크립트 첨부/교체(=수정) — 파일 확장자로 종류 자동 판별 (.ts: Node.js/Playwright/Appium/OWASP ZAP, .jmx: JMeter, .json: Postman/Newman, .py: Python/Selenium — 모두 OTM Companion이 실행하며, 그 도구를 설치한 컴패니언에만 보냄). 실제 저장 파일명은 전달한 fileName을 그대로 쓰지 않고 케이스 ID·제목 기반으로 서버가 재생성함(fileName은 확장자 판별 용도). content 맨 앞에 실제 엔진(Playwright/Appium/OWASP ZAP/Node.js/JMeter/Postman/Selenium)을 표시하는 주석(.ts/.jmx/.py) 또는 info.description(.json)을 반드시 포함해야 함. 이전 스크립트는 버전 이력으로 보관. `steps`를 함께 넘기면 케이스의 텍스트 스텝도 갱신(이때 케이스 버전 이력도 남음) |
+| `attach_automation_script` | 테스트 케이스에 자동화 스크립트 첨부/교체(=수정) — 파일 확장자로 종류 자동 판별 (.ts: Node.js/Playwright/Appium/OWASP ZAP, .jmx: JMeter, .json: Postman/Newman, .py: Python/Selenium — 모두 OTM Companion이 실행하며, 그 도구를 설치한 컴패니언에만 보냄). 실제 저장 파일명은 전달한 fileName을 그대로 쓰지 않고 케이스 ID·제목 기반으로 서버가 재생성함(fileName은 확장자 판별 용도). content 맨 앞에 실제 엔진(Playwright/Appium/OWASP ZAP/Node.js/JMeter/Postman/Selenium)을 표시하는 주석(.ts/.jmx/.py) 또는 info.description(.json)을 반드시 포함해야 함. 이전 스크립트는 버전 이력으로 보관. `steps`를 함께 넘기면 케이스의 텍스트 스텝도 갱신(이때 케이스 버전 이력도 남음). `expectedVersion`(get_test_case의 `automationScriptVersion`)과, steps를 바꿀 때 `expectedCaseVersion`(케이스 `version`)을 주면 그 사이 바뀌었을 때 409 `CONFLICT` |
 | `remove_automation_script` | 테스트 케이스의 자동화 스크립트 제거 (마찬가지로 버전 이력에 보관) |
 | `list_automation_script_versions` | 자동화 스크립트 이전 버전 이력 조회 |
 | `list_sessions` | 세션(실행 사이클) 목록 |
@@ -151,13 +151,14 @@ curl -H "X-Api-Key: otm_u_xxx" https://<서버>/api/v1/projects/<ID 또는 코�
 | `remove_case_dataset` | 케이스의 데이터셋 제거 (스크립트는 그대로) |
 | `list_run_iterations` | 데이터 주도 실행(`runId`)의 행별 결과 — 집계(passed/failed/error/review/pending)와 행마다 rowKey·status(PASSED/FAILED/ERROR/REVIEW…)·observed·열별 verdicts(expected/observed/match/probability/decidedBy)·log·artifacts, `status`로 필터 |
 | `review_iteration` | 결정 모델이 확신하지 못해 REVIEW로 남은 행(또는 열 하나)을 일치/불일치로 확정 — 모든 행이 확정되면 실행과 회차 결과가 PASSED/FAILED로 정해짐. 계정 API 키만, 확정한 사람으로 기록 |
-| `run_impact_analysis` | 변경 요약(마크다운, `## 영역`/`- 항목`으로 나눔)으로 프로젝트의 케이스 전체 또는 `folderIds`/`caseIds` 범위를 결정 모델로 분류 시작 — 케이스마다 UNAFFECTED/TEXT/SCRIPT/BOTH/OBSOLETE/UNKNOWN, 확률, 영향 준 항목. 백그라운드 진행이라 바로 id·total을 돌려주고, 임계값 아래 항목과 50% 미만 UNAFFECTED는 NEEDS_HUMAN으로 시작. 진행 중인 분석이 있으면 409(ALREADY_RUNNING) |
+| `run_impact_analysis` | 변경 요약(마크다운, `## 영역`/`- 항목`으로 나눔)으로 프로젝트의 케이스 전체 또는 `folderIds`/`caseIds` 범위를 결정 모델로 분류 시작 — 케이스마다 UNAFFECTED/TEXT/SCRIPT/BOTH/OBSOLETE/UNKNOWN, 확률, 영향 준 항목. 백그라운드 진행이라 바로 id·total을 돌려주고, 임계값 아래 항목과 50% 미만 UNAFFECTED는 NEEDS_HUMAN으로 시작. 진행 중인 분석이 있으면 409(ALREADY_RUNNING), 설치 전체에서 3건이 이미 돌고 있으면 429(SERVER_BUSY), 범위가 2,000케이스를 넘으면 400(TOO_MANY_CASES) |
+| `retry_impact_analysis` | 끝난(DONE/FAILED) 분석에서 판정 못 한(UNKNOWN) 항목만 이 키 계정의 결정 모델로 다시 판정 — 나머지는 그대로, 분석은 다시 RUNNING. 다시 물을 항목이 없으면 409(NOTHING_TO_RETRY) |
 | `get_impact_analysis` | 분석의 진행(RUNNING/DONE/FAILED, done/total), 종류별·처리별 요약, 항목 목록(케이스 코드·제목·스크립트 유무, impact, probability, area, distribution, resolution, note) — `impact`/`resolution`으로 필터 |
 | `list_impact_analyses` | 이 프로젝트의 변경 영향 분석 목록(최근순, 상태·진행·요청자) |
 | `resolve_impact_item` | 영향 항목의 처리 상태 변경 — APPLIED(고쳤음, note에 내용) / DISMISSED(해당 없음) / OPEN·NEEDS_HUMAN(되돌림). 실제 수정은 `update_test_case`·`attach_automation_script`로 한 뒤 기록 |
 | `get_case_impact_history` | 케이스 하나가 과거 분석에서 받은 판정과 처리 내역(최근 10건) — 결과 분석 때 "최근 변경으로 스크립트가 고쳐졌는지" 확인용 |
-| `get_decision_config` | 이 키 계정의 결정 모델(System One, 없으면 설치 기본값)이 설정되어 있는지, 텍스트/이미지 판정 모델, 이미지 입력 가능 여부(`imageVision` — 연결 테스트가 판별), 자동 반영 확신도(`autoThreshold`) 조회 |
-| `decide` | 이 키 계정의 결정 모델에 상태(`state`)와 타입이 정해진 질문들(`choice`·`noul`·`score`, 한 번에 최대 64개)을 보내 질문마다 타입 있는 답과 확률을 받음 — 텍스트 생성 없이 분류·판정·채점만. 수백 건을 빠르고 싸게 판정할 때 LLM 대신 사용. 읽기 전용 키로도 호출 가능. 결정 모델이 없으면 404 |
+| `get_decision_config` | 이 키 계정의 결정 모델(System One)이 설정되어 있는지(프로젝트 키에는 없음), 텍스트/이미지 판정 모델, 이미지 입력 가능 여부(`imageVision` — 연결 테스트가 판별), 자동 반영 확신도(`autoThreshold`) 조회 |
+| `decide` | 이 키 계정의 결정 모델에 상태(`state`)와 타입이 정해진 질문들(`choice`·`noul`·`score`, 한 번에 최대 64개)을 보내 질문마다 타입 있는 답과 확률을 받음 — 텍스트 생성 없이 분류·판정·채점만. 수백 건을 빠르고 싸게 판정할 때 LLM 대신 사용. 읽기 전용 키로도 호출 가능. 결정 모델이 없으면 404. 키마다 분당 120회·동시 4건(429), state 20만 자·이미지 장당 약 3MB(base64)·최대 8장(400). 질문과 형식이 다르거나 주어진 선택지에 없는 답은 502 |
 | `create_bug` | 결함 등록 (선택적으로 `roundId`를 넘기면 실행 사이클도 함께 기록) |
 | `list_bugs` | 결함 목록 조회 / `status`·`severity`·`priority`·`q`(키워드)로 검색·필터링 |
 | `get_bug` | 결함 하나의 전체 상세 조회 |

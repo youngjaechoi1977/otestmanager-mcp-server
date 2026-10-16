@@ -17,7 +17,7 @@ npm install
 
 ## 사용법
 
-1. OTestManager 사이드바 아래의 **내 API 키**에서 키를 발급받습니다. 조직 관리자는 항상 발급할 수 있고,
+1. OTestManager 사이드바 아래 이름을 누르면 열리는 계정 메뉴의 **내 API 키**에서 키를 발급받습니다. 조직 관리자는 항상 발급할 수 있고,
    그 외 멤버는 조직 관리자가 **내 조직** 화면에서 **모든 멤버 발급 가능**으로 설정한 조직에서만 발급할 수 있습니다.
 2. MCP 클라이언트(Claude Desktop 등) 설정에 다음과 같이 등록합니다:
 
@@ -59,7 +59,7 @@ npm install
 ### 읽기 전용 키
 
 발급할 때 **읽기 전용**을 고르면 MCP 서버가 조회 툴만 등록합니다(케이스·요구사항·세션·결과·결함·데이터셋·검토 확정·변경 영향 분석을
-바꾸는 쓰기 툴 25개는 나타나지 않습니다). 서버도 GET 외의 요청을 거절합니다.
+바꾸는 쓰기 툴 26개는 나타나지 않습니다). 서버도 GET 외의 요청을 거절합니다.
 예외는 `decide` 하나로, 판정은 데이터를 바꾸지 않으므로 읽기 전용 키로도 호출됩니다.
 
 ### 이전 방식의 프로젝트 키
@@ -87,6 +87,7 @@ QA Copilot이 이 서버로 하는 두 가지 흐름입니다. 둘 다 판정은
   고치거나 `create_test_case`로 새 케이스를 만든 뒤 `resolve_impact_item(APPLIED, note)`로 기록합니다. 폐기(OBSOLETE)는
   `remove_automation_script` + `update_test_case({ category: "폐기 후보" })`로 옮기고 `DISMISSED`로 처리하는 것이 QA Copilot의
   방식입니다. 확신도가 임계값 아래인 항목과 50%에 못 미치는 "영향 없음"은 `NEEDS_HUMAN`으로 시작하니 사람에게 보여 주세요.
+  모델이 잘못 분류했다고 사람이 확인했다면 `resolve_impact_item({ impact })`로 분류를 바꾸고, 되돌리려면 `impact: null`.
   케이스별 과거 판정은 `get_case_impact_history`.
 
 ## 공개 API로 직접 호출
@@ -122,11 +123,11 @@ curl -H "X-Api-Key: otm_u_xxx" https://<서버>/api/v1/projects/<ID 또는 코�
 | `create_requirement` | 새 요구사항 등록 — `category` 지정 시 요구사항 폴더 트리의 해당 하위 폴더에 정리됨(없으면 자동 생성) |
 | `update_requirement` | 기존 요구사항 내용 수정 (ID는 유지, 내용이 바뀌면 이전 버전 이력 자동 보존) |
 | `list_folders` | 프로젝트의 폴더 트리(id/name/parentId 평평한 목록) — `kind`로 테스트 케이스(기본값) 또는 요구사항 트리 선택. `list_test_cases`/`list_requirements`의 `folderId`와 대조해 계층 구조 조립 |
-| `list_test_cases` | 프로젝트의 테스트 케이스 목록 / `q`(키워드), `priority`, `automationScriptKind`, `hasAutomation`으로 검색·필터링. 각 케이스는 `folderId`를 포함 |
+| `list_test_cases` | 프로젝트의 테스트 케이스 목록 / `q`(키워드), `priority`, `automationScriptKind`, `hasAutomation`으로 검색·필터링(`automationScriptKind` 필터는 스크립트가 있는 케이스만 맞음). 각 케이스는 `folderId`를 포함하고, 스크립트가 없으면 `automationScriptKind`는 null |
 | `create_test_case` | 새 테스트 케이스를 이 프로젝트에 생성. `category`를 지정하면 이 프로젝트의 폴더 트리에서 그 이름의 하위 폴더에 담김(같은 이름 재사용 시 같은 폴더로 모임, 없으면 자동 생성) — 생략하면 최상위에 바로 담김. `requirementIds`를 지정하면 생성과 동시에 해당 요구사항(들)과 매칭됨(프로젝트 레벨). ID는 `<프로젝트코드>-TC-00001` 형식(5자리)으로 자동 채번 |
-| `get_test_case` | 테스트 케이스 하나의 전체 상세 조회 (첨부된 자동화 스크립트 원문, 속한 폴더 `folderId`, 덮어쓰기 방지용 `version`·`automationScriptVersion` 포함) |
+| `get_test_case` | 테스트 케이스 하나의 전체 상세 조회 (첨부된 자동화 스크립트 원문, 속한 폴더 `folderId`, 덮어쓰기 방지용 `version`·`automationScriptVersion` 포함, 스크립트가 없으면 `automationScriptKind`는 null) |
 | `update_test_case` | 테스트 케이스의 제목/목적/사전조건/입력값/기대결과/우선순위/스텝 수정 (전달한 필드만 변경, 수정 전 내용은 버전 이력으로 보존). `folderId`(list_folders의 ID, `null`이면 최상위) 또는 `category`(최상위 폴더 이름, 없으면 생성; 둘 다 주면 `folderId` 우선)로 다른 폴더로 옮길 수도 있음 — 옮기기만 하면 버전은 그대로. `expectedVersion`(get_test_case의 `version`)을 주면 그 사이 바뀌었을 때 아무것도 쓰지 않고 409(`code: CONFLICT`, `currentVersion`·`currentScriptVersion`) |
-| `get_automation_script_guide` | 스크립트 작성 전 참고할 가이드 — kind별(NODE_TS/JMETER/POSTMAN/PYTHON) 작성 규칙 + 실제 동작하는 예시 스크립트 |
+| `get_automation_script_guide` | 스크립트 작성 전 참고할 가이드 — kind별(NODE_TS/JMETER/POSTMAN/PYTHON/DATASET — DATASET은 데이터셋이 붙은 케이스의 행 실행 규칙) 작성 규칙 + 실제 동작하는 예시 스크립트 |
 | `attach_automation_script` | 테스트 케이스에 자동화 스크립트 첨부/교체(=수정) — 파일 확장자로 종류 자동 판별 (.ts: Node.js/Playwright/Appium/OWASP ZAP, .jmx: JMeter, .json: Postman/Newman, .py: Python/Selenium — 모두 OTM Companion이 실행하며, 그 도구를 설치한 컴패니언에만 보냄). 실제 저장 파일명은 전달한 fileName을 그대로 쓰지 않고 케이스 ID·제목 기반으로 서버가 재생성함(fileName은 확장자 판별 용도). content 맨 앞에 실제 엔진(Playwright/Appium/OWASP ZAP/Node.js/JMeter/Postman/Selenium)을 표시하는 주석(.ts/.jmx/.py) 또는 info.description(.json)을 반드시 포함해야 함. 이전 스크립트는 버전 이력으로 보관. `steps`를 함께 넘기면 케이스의 텍스트 스텝도 갱신(이때 케이스 버전 이력도 남음). `expectedVersion`(get_test_case의 `automationScriptVersion`)과, steps를 바꿀 때 `expectedCaseVersion`(케이스 `version`)을 주면 그 사이 바뀌었을 때 409 `CONFLICT` |
 | `remove_automation_script` | 테스트 케이스의 자동화 스크립트 제거 (마찬가지로 버전 이력에 보관) |
 | `list_automation_script_versions` | 자동화 스크립트 이전 버전 이력 조회 |
@@ -152,10 +153,10 @@ curl -H "X-Api-Key: otm_u_xxx" https://<서버>/api/v1/projects/<ID 또는 코�
 | `list_run_iterations` | 데이터 주도 실행(`runId`)의 행별 결과 — 집계(passed/failed/error/review/pending)와 행마다 rowKey·status(PASSED/FAILED/ERROR/REVIEW…)·observed·열별 verdicts(expected/observed/match/probability/decidedBy)·log·artifacts, `status`로 필터 |
 | `review_iteration` | 결정 모델이 확신하지 못해 REVIEW로 남은 행(또는 열 하나)을 일치/불일치로 확정 — 모든 행이 확정되면 실행과 회차 결과가 PASSED/FAILED로 정해짐. 계정 API 키만, 확정한 사람으로 기록 |
 | `run_impact_analysis` | 변경 요약(마크다운, `## 영역`/`- 항목`으로 나눔)으로 프로젝트의 케이스 전체 또는 `folderIds`/`caseIds` 범위를 결정 모델로 분류 시작 — 케이스마다 UNAFFECTED/TEXT/SCRIPT/BOTH/OBSOLETE/UNKNOWN, 확률, 영향 준 항목. 백그라운드 진행이라 바로 id·total을 돌려주고, 임계값 아래 항목과 50% 미만 UNAFFECTED는 NEEDS_HUMAN으로 시작. 진행 중인 분석이 있으면 409(ALREADY_RUNNING), 설치 전체에서 3건이 이미 돌고 있으면 429(SERVER_BUSY), 범위가 2,000케이스를 넘으면 400(TOO_MANY_CASES) |
-| `retry_impact_analysis` | 끝난(DONE/FAILED) 분석에서 판정 못 한(UNKNOWN) 항목만 이 키 계정의 결정 모델로 다시 판정 — 나머지는 그대로, 분석은 다시 RUNNING. 다시 물을 항목이 없으면 409(NOTHING_TO_RETRY) |
-| `get_impact_analysis` | 분석의 진행(RUNNING/DONE/FAILED, done/total), 종류별·처리별 요약, 항목 목록(케이스 코드·제목·스크립트 유무, impact, probability, area, distribution, resolution, note) — `impact`/`resolution`으로 필터 |
+| `retry_impact_analysis` | 끝난(DONE/FAILED) 분석에서 판정 못 한(UNKNOWN) 항목만 이 키 계정의 결정 모델로 다시 판정 — 나머지는 그대로, 분석은 다시 RUNNING. 다시 물을 항목이 없거나 그 분석이 아직 진행 중이면 409(NOTHING_TO_RETRY), 이 프로젝트에서 다른 분석이 진행 중이면 409(ALREADY_RUNNING), 설치 전체에서 3건이 이미 돌고 있으면 429(SERVER_BUSY) |
+| `get_impact_analysis` | 분석의 진행(RUNNING/DONE/FAILED, done/total), 종류별·처리별 요약, 항목 목록(케이스 코드·제목·스크립트 유무, impact, probability, area, distribution, resolution, note, 그리고 분류의 출처 `impactSource`(MODEL 또는 HUMAN)·사람이 바꿨을 때 남은 모델 판정 `modelImpact`·`modelProbability`·바꾼 사람 `reclassifiedBy`·시각 `reclassifiedAt`) — `impact`/`resolution`으로 필터. 요약과 `impact` 필터는 사람이 바꾼 분류를 포함해 실제로 적용되는 분류 기준 |
 | `list_impact_analyses` | 이 프로젝트의 변경 영향 분석 목록(최근순, 상태·진행·요청자) |
-| `resolve_impact_item` | 영향 항목의 처리 상태 변경 — APPLIED(고쳤음, note에 내용) / DISMISSED(해당 없음) / OPEN·NEEDS_HUMAN(되돌림). 실제 수정은 `update_test_case`·`attach_automation_script`로 한 뒤 기록 |
+| `resolve_impact_item` | 영향 항목의 처리 상태나 분류 변경 — `resolution`(선택): APPLIED(고쳤음, note에 내용) / DISMISSED(해당 없음) / OPEN·NEEDS_HUMAN(되돌림). `impact`(선택): UNAFFECTED/TEXT/SCRIPT/BOTH/OBSOLETE로 사람이 확인한 분류를 정함 — 확신도는 1이 되고 모델 판정은 `modelImpact`로 남으며, NEEDS_HUMAN이던 항목은 OPEN이 됨. `impact: null`은 모델 판정으로 되돌림. `resolution`과 `impact` 중 하나는 있어야 함. 실제 수정은 `update_test_case`·`attach_automation_script`로 한 뒤 기록 |
 | `get_case_impact_history` | 케이스 하나가 과거 분석에서 받은 판정과 처리 내역(최근 10건) — 결과 분석 때 "최근 변경으로 스크립트가 고쳐졌는지" 확인용 |
 | `get_decision_config` | 이 키 계정의 결정 모델(System One)이 설정되어 있는지(프로젝트 키에는 없음), 텍스트/이미지 판정 모델, 이미지 입력 가능 여부(`imageVision` — 연결 테스트가 판별), 자동 반영 확신도(`autoThreshold`) 조회 |
 | `decide` | 이 키 계정의 결정 모델에 상태(`state`)와 타입이 정해진 질문들(`choice`·`noul`·`score`, 한 번에 최대 64개)을 보내 질문마다 타입 있는 답과 확률을 받음 — 텍스트 생성 없이 분류·판정·채점만. 수백 건을 빠르고 싸게 판정할 때 LLM 대신 사용. 읽기 전용 키로도 호출 가능. 결정 모델이 없으면 404. 키마다 분당 120회·동시 4건(429), state 20만 자·이미지 장당 약 3MB(base64)·최대 8장(400). 질문과 형식이 다르거나 주어진 선택지에 없는 답은 502 |

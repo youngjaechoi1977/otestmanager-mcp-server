@@ -219,7 +219,11 @@ const SCRIPT_GUIDES = {
     '스크립트는 run_case_automation으로 실제 OTM Companion에서 실행하고, get_automation_run_status로 ' +
     '결과(Pass/Fail, 로그, 아티팩트)를 가져올 수 있습니다. NODE_TS는 모든 OTM Companion이 실행하고, ' +
     'JMeter·Postman·Appium·OWASP ZAP은 그 도구를 설치한 컴패니언만 실행합니다(list_companions의 capabilities로 ' +
-    '확인; 없는 컴패니언에는 실행을 보내지 않습니다). 종류별 상세 작성 규칙과 예시는 ' +
+    '확인; 없는 컴패니언에는 실행을 보내지 않습니다).\n\n' +
+    '**실패할 때는 기대값과 실제로 본 값을 둘 다 출력하세요** (예: `expected: "3단계" / observed: "3단계 (401kWh 이상)"`, ' +
+    '화면에 오류가 보였다면 그 오류 문구도). 어설션이 "실패"만 남기면 결과 분석에서 스크립트 문제(셀렉터·대기)인지 제품 결함인지 ' +
+    '가릴 수 없습니다 — 단언 라이브러리의 메시지에 값이 안 나오면 실패 직전에 console.log로 남기세요.\n\n' +
+    '종류별 상세 작성 규칙과 예시는 ' +
     'get_automation_script_guide({ kind })로 조회하세요 — kind는 "NODE_TS", "JMETER", "POSTMAN", "PYTHON" 중 하나입니다.',
 
 
@@ -238,7 +242,11 @@ const SCRIPT_GUIDES = {
     '- image 열: 객체 {src, alt, w(naturalWidth), h, loaded(complete && naturalWidth>0)}; 가능하면 그 요소의 스크린샷을 `screenshot`에 base64로 — 실행을 요청한 사람의 이미지 판정 모델이 이미지를 보면 직접 비교에 쓰입니다.\n' +
     '- 값을 찾지 못한 열은 빼거나 null로 두세요 (서버가 "관측 없음"으로 불일치 처리).\n' +
     '종료 코드 0 = 관측 성공(판정은 서버), 0이 아닌 코드 = 이 행을 관측조차 못 함(페이지를 못 열었다 등) → 행 ERROR. ' +
-    '실패 시 전체 페이지 스크린샷을 남기면 행 증적으로 첨부됩니다.\n\n' +
+    '실패 시 전체 페이지 스크린샷을 남기면 행 증적으로 첨부됩니다.\n' +
+    '**페이지는 열렸지만 결과 대신 오류 상태가 보이는 경우**(상태 "오류", 결과 자리에 오류 메시지, 오류 토스트 등)도 관측 실패입니다: ' +
+    '`OTM_OBSERVED`를 출력하지 말고, 보이는 오류 문구를 출력하고 전체 페이지 스크린샷을 남긴 뒤 0이 아닌 코드로 끝내세요 → 행 ERROR. ' +
+    '오류 화면에서 읽은 값(빈 결과, "오류" 같은 상태 문자열)을 관측값으로 내면 서버는 그것을 결과로 보고 불일치나 엉뚱한 일치로 판정합니다. ' +
+    '예외는 그 오류가 이 행의 기대값일 때뿐입니다(예: 잘못된 입력 행의 기대 결과가 "오류" 또는 특정 오류 메시지) — 그때는 오류 문구를 해당 열의 관측값으로 출력합니다.\n\n' +
     'Playwright 예시:\n' +
     '```ts\n' +
     '// Engine: Playwright\n' +
@@ -250,6 +258,9 @@ const SCRIPT_GUIDES = {
     'try {\n' +
     '  await page.goto(`${process.env.OTM_VAR_BASE_URL}/products/${row.sku}`, { waitUntil: \'networkidle\' });\n' +
     "  const name = (await page.locator('h1.product-title').textContent())?.trim() ?? null;\n" +
+    "  // 결과 대신 오류 상태가 보이면 관측하지 않고 행 ERROR (오류가 이 행의 기대값이면 관측값으로 출력)\n" +
+    "  const pageError = page.locator('.error-message');\n" +
+    "  if (await pageError.count()) throw new Error('화면 오류 상태: ' + (await pageError.first().innerText()).trim());\n" +
     "  const price = (await page.locator('.price').first().textContent())?.trim() ?? null;\n" +
     "  const img = page.locator('.gallery img').first();\n" +
     "  const image = (await img.count()) ? {\n" +

@@ -681,7 +681,7 @@ server.registerTool(
     title: '테스트 케이스 목록 조회 / 검색',
     description:
       '이 API 키에 연결된 프로젝트의 테스트 케이스 목록을 가져옵니다. 각 케이스의 ' +
-      'automationFileName/automationScript/automationScriptKind로 이미 자동화 스크립트가 첨부되어 ' +
+      'automationFileName/automationScript/automationScriptKind(스크립트가 없으면 null)로 이미 자동화 스크립트가 첨부되어 ' +
       '있는지, 어떤 종류(NODE_TS/JMETER/POSTMAN/PYTHON)인지 확인할 수 있습니다. folderId로 list_folders가 ' +
       '반환하는 폴더 트리 어디에 속하는지 알 수 있습니다(null이면 폴더 없음). 필터를 하나도 넘기지 않으면 ' +
       '전체 목록을 반환합니다.',

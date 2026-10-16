@@ -1,9 +1,9 @@
-# OTestManager2026 — MCP 서버
+# OTestManager — MCP 서버
 
-외부 LLM 클라이언트(Claude Desktop, Claude Code 등)가 OTestManager2026 프로젝트에
+외부 LLM 클라이언트(Claude Desktop, Claude Code 등)가 OTestManager 프로젝트에
 테스트 케이스를 만들고, 실행 결과를 조회·기록하고, 결함을 등록할 수 있게 해주는 MCP 서버입니다.
 
-이 서버는 상태를 갖지 않는 얇은 어댑터입니다 — 모든 툴 호출은 그대로 OTestManager2026
+이 서버는 상태를 갖지 않는 얇은 어댑터입니다 — 모든 툴 호출은 그대로 OTestManager
 공개 API(`/api/v1/projects/<프로젝트>/*`)를 계정 API 키로 호출할 뿐입니다.
 
 ## 설치
@@ -17,7 +17,7 @@ npm install
 
 ## 사용법
 
-1. OTestManager2026 사이드바 아래의 **내 API 키**에서 키를 발급받습니다. 조직 관리자는 항상 발급할 수 있고,
+1. OTestManager 사이드바 아래의 **내 API 키**에서 키를 발급받습니다. 조직 관리자는 항상 발급할 수 있고,
    그 외 멤버는 조직 관리자가 **내 조직** 화면에서 **모든 멤버 발급 가능**으로 설정한 조직에서만 발급할 수 있습니다.
 2. MCP 클라이언트(Claude Desktop 등) 설정에 다음과 같이 등록합니다:
 

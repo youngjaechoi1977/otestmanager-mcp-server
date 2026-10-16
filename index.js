@@ -753,6 +753,8 @@ server.registerTool(
       steps: z.array(z.object({ action: z.string(), expected: z.string() })).optional().describe('테스트 스텝 목록 (전달 시 전체 교체)'),
       folderId: z.string().nullable().optional().describe('옮길 폴더 ID (list_folders로 조회). null이면 최상위(폴더 없음)'),
       category: z.string().optional().describe('옮길 최상위 폴더 이름 — 없으면 새로 만듭니다(create_test_case의 category와 같은 규칙). folderId와 함께 주면 folderId가 우선'),
+      expectedVersion: z.number().int().positive().optional()
+        .describe('get_test_case로 읽은 케이스의 version. 주면 그 사이 케이스가 바뀌었을 때 아무것도 쓰지 않고 409(code: CONFLICT, currentVersion·currentScriptVersion)를 돌려줍니다'),
     },
   },
   async ({ caseId, ...patch }) => textResult(await callApi(`/test-cases/${encodeURIComponent(caseId)}`, { method: 'PATCH', body: JSON.stringify(patch) }))
@@ -779,10 +781,14 @@ server.registerTool(
       content: z.string().describe('스크립트 전체 내용 — 맨 앞에 실제 엔진(Playwright/Appium/OWASP ZAP/Node.js/JMeter/Postman/Selenium)을 표시하는 주석 또는 info.description을 포함해야 함'),
       steps: z.array(z.object({ action: z.string(), expected: z.string() })).optional()
         .describe('스크립트가 실제로 구현하는 전체 스텝 목록(전달 시 케이스의 기존 스텝을 통째로 교체) — 스크립트가 텍스트 스텝에 없던 동작을 추가로 구현했을 때만 전달'),
+      expectedVersion: z.number().int().positive().optional()
+        .describe('get_test_case로 읽은 automationScriptVersion. 주면 그 사이 스크립트가 바뀌었을 때 아무것도 쓰지 않고 409(code: CONFLICT)를 돌려줍니다'),
+      expectedCaseVersion: z.number().int().positive().optional()
+        .describe('steps도 함께 바꿀 때, get_test_case로 읽은 케이스의 version (다르면 409 CONFLICT)'),
     },
   },
-  async ({ caseId, fileName, content, steps }) =>
-    textResult(await callApi(`/test-cases/${encodeURIComponent(caseId)}/script`, { method: 'PUT', body: JSON.stringify({ fileName, content, steps }) }))
+  async ({ caseId, fileName, content, steps, expectedVersion, expectedCaseVersion }) =>
+    textResult(await callApi(`/test-cases/${encodeURIComponent(caseId)}/script`, { method: 'PUT', body: JSON.stringify({ fileName, content, steps, expectedVersion, expectedCaseVersion }) }))
 );
 
 server.registerTool(

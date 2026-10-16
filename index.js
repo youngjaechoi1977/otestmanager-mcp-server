@@ -1313,7 +1313,7 @@ server.registerTool(
         .describe('열 정의'),
       rows: z.array(z.record(z.any())).describe('행 배열. 각 행은 { 열키: 기대값 }. image 열은 { file, image } 객체도 됩니다'),
       keyColumn: z.string().describe('행을 식별하는 열 키'),
-      maxParallel: z.number().int().min(1).max(8).optional().describe('컴패니언이 동시에 실행할 행 수 (기본 1)'),
+      maxParallel: z.number().int().min(1).max(16).optional().describe('컴패니언이 동시에 실행할 행 수 (1~16, 기본 4)'),
     },
   },
   async ({ caseId, ...body }) =>
@@ -1393,7 +1393,7 @@ server.registerTool(
     description:
       '사이트·디자인 변경 요약(마크다운; "## 영역" 제목이나 "- 항목" 불릿으로 변경 항목을 나누면 항목별로 영향이 분류됨)을 주면 프로젝트의 테스트 케이스 전체(또는 folderIds/caseIds 범위)를 ' +
       '결정 모델로 분류합니다 - 케이스마다 impact: UNAFFECTED(영향 없음) | TEXT(본문 수정) | SCRIPT(스크립트 수정) | BOTH | OBSOLETE(폐기) | UNKNOWN(판정 못 함), 확률, 영향 준 변경 항목(area). ' +
-      '백그라운드로 진행되며 바로 analysis id와 total을 돌려줍니다. get_impact_analysis로 done/total과 항목을 확인하세요. 판정은 이 키 계정의 결정 모델로 하며, 없으면 설치 기본값, 그것도 없으면 FAILED가 됩니다. ' +
+      '백그라운드로 진행되며 바로 analysis id와 total을 돌려줍니다. get_impact_analysis로 done/total과 항목을 확인하세요. 판정은 이 키 계정의 결정 모델로 하며, 없으면 FAILED가 됩니다(프로젝트 키에는 결정 모델이 없음). ' +
       '확신도가 그 사람의 자동 반영 임계값 아래인 항목은 NEEDS_HUMAN으로 시작합니다. 프로젝트에 진행 중인 분석이 있으면 409(code ALREADY_RUNNING, runningId)로 거절되니 그것이 끝난 뒤 시작하세요.',
     inputSchema: {
       title: z.string().describe('분석 이름 (예: "결제 화면 개편 2026-10-08")'),
@@ -1464,7 +1464,7 @@ server.registerTool(
   {
     title: '결정 모델 설정 조회',
     description:
-      '이 키 계정의 결정 모델(System One; 계정 메뉴의 내 결정 모델, 없으면 설치 기본값)이 설정되어 있는지, 텍스트/이미지 판정에 ' +
+      '이 키 계정의 결정 모델(System One; 계정 메뉴의 내 결정 모델)이 설정되어 있는지, 텍스트/이미지 판정에 ' +
       '어떤 모델을 쓰는지, 이미지 입력이 가능한지(imageVision), 자동 반영 확신도 임계값(autoThreshold)을 조회합니다. ' +
       'decide 호출 전에 확인하거나, 결정 모델이 필요한 기능(데이터 주도 검증, 변경 영향 분석)을 보여줄지 정할 때 씁니다.',
     inputSchema: {},
@@ -1481,7 +1481,7 @@ server.registerTool(
       '않고 분류·판정·채점만 합니다 - 수백 건을 빠르고 싸게 판정해야 할 때 LLM 대신 쓰세요. 질문 타입: choice(선택지 2~26개 중 ' +
       '하나, probabilities/confidence 포함), noul(참일 확률 0~1), score(순서 있는 단계 2~26개 중 위치). 한 번에 최대 64개 질문. ' +
       '응답의 확률이 autoThreshold(get_decision_config) 이상이면 자동 반영, 그 사이면 사람 검토 대상으로 다루세요. ' +
-      '이 계정에도 설치 기본값에도 결정 모델이 없으면 404가 납니다.',
+      '이 계정에 결정 모델이 없으면(프로젝트 키 포함) 404가 납니다.',
     inputSchema: {
       state: z
         .union([z.string(), z.record(z.any()), z.array(z.any())])

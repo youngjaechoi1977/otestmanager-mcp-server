@@ -141,7 +141,7 @@ const WRITE_TOOLS = new Set([
   'record_result', 'run_case_automation', 'cancel_automation_run',
   'create_bug', 'update_bug', 'link_bug_to_result', 'attach_bug_evidence', 'attach_run_artifact_to_bug',
   'set_case_dataset', 'remove_case_dataset', 'review_iteration',
-  'run_impact_analysis', 'resolve_impact_item',
+  'run_impact_analysis', 'retry_impact_analysis', 'resolve_impact_item',
   // not `decide`: a verdict changes nothing, and the server lets a read-only key ask for one.
 ]);
 
@@ -1429,6 +1429,18 @@ server.registerTool(
     inputSchema: {},
   },
   async () => textResult(await callApi('/impact-analyses'))
+);
+
+server.registerTool(
+  'retry_impact_analysis',
+  {
+    title: '변경 영향 분석의 UNKNOWN 항목 다시 판정',
+    description:
+      '끝난(DONE/FAILED) 분석에서 impact가 UNKNOWN인 항목만 이 키 계정의 결정 모델로 다시 판정합니다(모델이 잠시 끊겼거나 형식을 못 맞춘 경우). ' +
+      '나머지 항목은 그대로 두며, 분석은 다시 RUNNING이 되므로 get_impact_analysis로 done/total을 확인하세요. 다시 판정할 항목이 없으면 409(NOTHING_TO_RETRY).',
+    inputSchema: { analysisId: z.string() },
+  },
+  async ({ analysisId }) => textResult(await callApi(`/impact-analyses/${encodeURIComponent(analysisId)}/retry`, { method: 'POST' }))
 );
 
 server.registerTool(

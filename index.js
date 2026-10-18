@@ -1274,7 +1274,7 @@ server.registerTool('list_companions', { title: 'OTM Companion 조회', ...LIST_
   textResult(await callApi('/companions'))
 );
 
-// The name clients from before OTM Companion call (QA Copilot's studio among them).
+// The name clients from before OTM Companion call (Qnnect's studio among them).
 server.registerTool('list_runners', { title: 'OTM Companion 조회 (예전 이름: list_companions를 쓰세요)', ...LIST_COMPANIONS }, async () =>
   textResult(await callApi('/companions'))
 );

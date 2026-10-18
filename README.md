@@ -70,7 +70,7 @@ npm install
 
 ### 데이터 주도 실행과 변경 영향 분석
 
-QA Copilot이 이 서버로 하는 두 가지 흐름입니다. 둘 다 판정은 **이 키 계정의 결정 모델**(계정 메뉴의 내 결정 모델.
+Qnnect가 이 서버로 하는 두 가지 흐름입니다. 둘 다 판정은 **이 키 계정의 결정 모델**(계정 메뉴의 내 결정 모델.
 설치 기본값은 없고, 프로젝트 키에는 결정 모델이 없음)이 맡으므로 `get_decision_config`로 먼저 확인하세요.
 
 - **데이터 주도 케이스** — `create_test_case`로 케이스를 만들고(또는 기존 케이스에) `set_case_dataset`으로 데이터셋을
@@ -85,7 +85,7 @@ QA Copilot이 이 서버로 하는 두 가지 흐름입니다. 둘 다 판정은
   돌아오고 분류는 백그라운드로 진행됩니다. `get_impact_analysis`를 폴링해 `status`가 DONE이 되면 항목(impact·확신도·
   영향 준 항목·resolution)을 읽고, 수정이 필요한 것(TEXT/SCRIPT/BOTH)은 `update_test_case`·`attach_automation_script`로
   고치거나 `create_test_case`로 새 케이스를 만든 뒤 `resolve_impact_item(APPLIED, note)`로 기록합니다. 폐기(OBSOLETE)는
-  `remove_automation_script` + `update_test_case({ category: "폐기 후보" })`로 옮기고 `DISMISSED`로 처리하는 것이 QA Copilot의
+  `remove_automation_script` + `update_test_case({ category: "폐기 후보" })`로 옮기고 `DISMISSED`로 처리하는 것이 Qnnect의
   방식입니다. 확신도가 임계값 아래인 항목과 50%에 못 미치는 "영향 없음"은 `NEEDS_HUMAN`으로 시작하니 사람에게 보여 주세요.
   모델이 잘못 분류했다고 사람이 확인했다면 `resolve_impact_item({ impact })`로 분류를 바꾸고, 되돌리려면 `impact: null`.
   케이스별 과거 판정은 `get_case_impact_history`.

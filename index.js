@@ -131,6 +131,11 @@ function textResult(data) {
 
 const server = new McpServer({ name: 'otestmanager', version: '2.0.0' });
 
+// Bug.defectType on the server (schema.prisma DefectType); the labels live in the description.
+const DEFECT_TYPES = ['BOUNDARY', 'STATE_TRANSITION', 'CONSISTENCY', 'CALCULATION', 'DISPLAY_TEXT', 'VALIDATION', 'PERFORMANCE', 'SECURITY', 'OTHER'];
+const DEFECT_TYPE_DESC =
+  "결함 유형 (선택): BOUNDARY(경계값) / STATE_TRANSITION(상태 전이) / CONSISTENCY(화면 간·동작 전후 일관성) / CALCULATION(계산) / DISPLAY_TEXT(표시·문구) / VALIDATION(검증 누락) / PERFORMANCE(성능) / SECURITY(보안) / OTHER(기타). 무엇이 잘못됐는지로 판단하고(어디서가 아니라), 모르면 비워 두세요.";
+
 // Tools that change something. A read-only account key leaves them out altogether, rather than
 // offering the model tools whose every call would be refused.
 const WRITE_TOOLS = new Set([
@@ -639,6 +644,7 @@ server.registerTool(
         .string()
         .optional()
         .describe('이 프로젝트의 요구사항 폴더 트리에서 이 요구사항을 담을 하위 폴더 이름. 같은 이름을 재사용하면 같은 폴더에 모입니다. 생략하면 최상위에 바로 담깁니다.'),
+      docUrl: z.string().optional().describe('이 요구사항이 나온 문서(명세서·위키 페이지)의 http(s) 링크 (선택)'),
     },
   },
   async (args) => textResult(await callApi('/requirements', { method: 'POST', body: JSON.stringify(args) }))
@@ -648,14 +654,17 @@ server.registerTool(
   'update_requirement',
   {
     title: '요구사항 내용 수정',
-    description: '기존 요구사항의 내용을 수정합니다. ID(code)는 바뀌지 않으며, 내용이 실제로 바뀌면 수정 전 내용이 이전 버전 이력으로 자동 보존됩니다.',
+    description:
+      '기존 요구사항의 내용이나 문서 링크를 수정합니다. ID(code)는 바뀌지 않으며, 내용이 실제로 바뀌면 수정 전 내용이 ' +
+      '이전 버전 이력으로 자동 보존됩니다(링크만 바뀌면 버전은 그대로). 전달한 필드만 바뀝니다.',
     inputSchema: {
       requirementId: z.string().describe('list_requirements로 조회한 요구사항 ID'),
-      text: z.string().describe('새 요구사항 내용'),
+      text: z.string().optional().describe('새 요구사항 내용'),
+      docUrl: z.string().nullable().optional().describe('문서 링크(http(s)); null이면 지움'),
     },
   },
-  async ({ requirementId, text }) =>
-    textResult(await callApi(`/requirements/${encodeURIComponent(requirementId)}`, { method: 'PATCH', body: JSON.stringify({ text }) }))
+  async ({ requirementId, ...patch }) =>
+    textResult(await callApi(`/requirements/${encodeURIComponent(requirementId)}`, { method: 'PATCH', body: JSON.stringify(patch) }))
 );
 
 server.registerTool(
@@ -1118,6 +1127,7 @@ server.registerTool(
       reproSteps: z.string().optional(),
       severity: z.enum(['NOTE', 'MINOR', 'MAJOR', 'CRITICAL']).optional(),
       priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
+      defectType: z.enum(DEFECT_TYPES).optional().describe(DEFECT_TYPE_DESC),
       cycleCaseId: z
         .string()
         .optional()
@@ -1147,11 +1157,12 @@ server.registerTool(
       status: z.enum(['OPEN', 'IN_PROGRESS', 'FIXED', 'CLOSED']).nullish(),
       severity: z.enum(['NOTE', 'MINOR', 'MAJOR', 'CRITICAL']).nullish(),
       priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).nullish(),
+      defectType: z.enum(DEFECT_TYPES).nullish().describe('결함 유형으로 필터링'),
       q: z.string().nullish().describe('ID/제목/설명/실제결과에 포함된 검색어 (대소문자 무시)'),
     },
   },
-  async ({ status, severity, priority, q } = {}) =>
-    textResult(await callApi(`/bugs${qs({ status, severity, priority, q })}`))
+  async ({ status, severity, priority, defectType, q } = {}) =>
+    textResult(await callApi(`/bugs${qs({ status, severity, priority, defectType, q })}`))
 );
 
 server.registerTool(
@@ -1182,6 +1193,7 @@ server.registerTool(
       severity: z.enum(['NOTE', 'MINOR', 'MAJOR', 'CRITICAL']).optional(),
       priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
       status: z.enum(['OPEN', 'IN_PROGRESS', 'FIXED', 'CLOSED']).optional(),
+      defectType: z.enum(DEFECT_TYPES).nullable().optional().describe(DEFECT_TYPE_DESC + ' null이면 미분류로 되돌림.'),
       roundId: z.string().nullable().optional().describe('연관된 실행 사이클(회차) ID (list_rounds로 조회, null이면 연결 해제)'),
       cycleCaseId: z.string().nullable().optional().describe('연관된 세션 케이스 ID (list_session_cases로 조회, null이면 연결 해제)'),
     },
@@ -1284,7 +1296,7 @@ server.registerTool(
   {
     title: '프로젝트 현황 요약',
     description:
-      '테스트 케이스 수, 요구사항 수와 커버리지, 세션 수, 상태별 결함 수를 한 번에 조회합니다. ' +
+      '테스트 케이스 수, 요구사항 수와 커버리지, 세션 수, 상태별 결함 수, 유형별 결함 수(defectTypeCounts, 미분류는 UNCLASSIFIED)를 한 번에 조회합니다. ' +
       '여러 list_* 도구를 조합하지 않고 프로젝트 전반 현황을 빠르게 파악할 때 씁니다.',
     inputSchema: {},
   },

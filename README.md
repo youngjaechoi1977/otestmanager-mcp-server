@@ -120,8 +120,8 @@ curl -H "X-Api-Key: otm_u_xxx" https://<서버>/api/v1/projects/<ID 또는 코�
 | `remove_document` | 프로젝트 첨부 문서 삭제 |
 | `list_requirements` | 프로젝트의 요구사항 목록 / `q`로 ID·내용 검색. 각 요구사항은 `folderId`를 포함 |
 | `get_requirement` | 요구사항 하나의 전체 상세 조회 (버전, 이 요구사항을 검증하는 테스트 케이스 목록 포함) |
-| `create_requirement` | 새 요구사항 등록 — `category` 지정 시 요구사항 폴더 트리의 해당 하위 폴더에 정리됨(없으면 자동 생성) |
-| `update_requirement` | 기존 요구사항 내용 수정 (ID는 유지, 내용이 바뀌면 이전 버전 이력 자동 보존) |
+| `create_requirement` | 새 요구사항 등록 — `category` 지정 시 요구사항 폴더 트리의 해당 하위 폴더에 정리됨(없으면 자동 생성). `docUrl`(선택)로 출처 문서 링크 기록 |
+| `update_requirement` | 기존 요구사항 내용·문서 링크(`docUrl`, null이면 지움) 수정 (ID는 유지, 내용이 바뀌면 이전 버전 이력 자동 보존) |
 | `list_folders` | 프로젝트의 폴더 트리(id/name/parentId 평평한 목록) — `kind`로 테스트 케이스(기본값) 또는 요구사항 트리 선택. `list_test_cases`/`list_requirements`의 `folderId`와 대조해 계층 구조 조립 |
 | `list_test_cases` | 프로젝트의 테스트 케이스 목록 / `q`(키워드), `priority`, `automationScriptKind`, `hasAutomation`으로 검색·필터링(`automationScriptKind` 필터는 스크립트가 있는 케이스만 맞음). 각 케이스는 `folderId`를 포함하고, 스크립트가 없으면 `automationScriptKind`는 null |
 | `create_test_case` | 새 테스트 케이스를 이 프로젝트에 생성. `category`를 지정하면 이 프로젝트의 폴더 트리에서 그 이름의 하위 폴더에 담김(같은 이름 재사용 시 같은 폴더로 모임, 없으면 자동 생성) — 생략하면 최상위에 바로 담김. `requirementIds`를 지정하면 생성과 동시에 해당 요구사항(들)과 매칭됨(프로젝트 레벨). ID는 `<프로젝트코드>-TC-00001` 형식(5자리)으로 자동 채번 |
@@ -160,14 +160,14 @@ curl -H "X-Api-Key: otm_u_xxx" https://<서버>/api/v1/projects/<ID 또는 코�
 | `get_case_impact_history` | 케이스 하나가 과거 분석에서 받은 판정과 처리 내역(최근 10건) — 결과 분석 때 "최근 변경으로 스크립트가 고쳐졌는지" 확인용 |
 | `get_decision_config` | 이 키 계정의 결정 모델(System One)이 설정되어 있는지(프로젝트 키에는 없음), 텍스트/이미지 판정 모델, 이미지 입력 가능 여부(`imageVision` — 연결 테스트가 판별), 자동 반영 확신도(`autoThreshold`) 조회 |
 | `decide` | 이 키 계정의 결정 모델에 상태(`state`)와 타입이 정해진 질문들(`choice`·`noul`·`score`, 한 번에 최대 64개)을 보내 질문마다 타입 있는 답과 확률을 받음 — 텍스트 생성 없이 분류·판정·채점만. 수백 건을 빠르고 싸게 판정할 때 LLM 대신 사용. 읽기 전용 키로도 호출 가능. 결정 모델이 없으면 404. 키마다 분당 120회·동시 4건(429), state 20만 자·이미지 장당 약 3MB(base64)·최대 8장(400). 질문과 형식이 다르거나 주어진 선택지에 없는 답은 502 |
-| `create_bug` | 결함 등록 (선택적으로 `roundId`를 넘기면 실행 사이클도 함께 기록) |
-| `list_bugs` | 결함 목록 조회 / `status`·`severity`·`priority`·`q`(키워드)로 검색·필터링 |
+| `create_bug` | 결함 등록 (선택적으로 `roundId`를 넘기면 실행 사이클도 함께 기록). `defectType`(선택)으로 결함 유형 분류 — BOUNDARY / STATE_TRANSITION / CONSISTENCY / CALCULATION / DISPLAY_TEXT / VALIDATION / PERFORMANCE / SECURITY / OTHER |
+| `list_bugs` | 결함 목록 조회 / `status`·`severity`·`priority`·`defectType`·`q`(키워드)로 검색·필터링 |
 | `get_bug` | 결함 하나의 전체 상세 조회 |
-| `update_bug` | 결함 수정 및 상태 전이(OPEN→IN_PROGRESS→FIXED→CLOSED), 연관된 실행 사이클(`roundId`)·세션 케이스(`cycleCaseId`) 재지정/해제(null) — 둘은 같은 세션의 것이어야 함(하나만 바꿔도 남은 쪽과 맞는지 확인). 수정 전 내용은 이전 버전 이력으로 자동 보존 |
+| `update_bug` | 결함 수정(`defectType` 포함, null이면 미분류) 및 상태 전이(OPEN→IN_PROGRESS→FIXED→CLOSED), 연관된 실행 사이클(`roundId`)·세션 케이스(`cycleCaseId`) 재지정/해제(null) — 둘은 같은 세션의 것이어야 함(하나만 바꿔도 남은 쪽과 맞는지 확인). 수정 전 내용은 이전 버전 이력으로 자동 보존 |
 | `link_bug_to_result` | 이미 등록된 결함이 다른 세션/회차에서 다시 발견됐을 때, 원래 발견 위치는 그대로 두고 이번 실행도 함께 기록 (같은 조합은 한 번만) |
 | `attach_bug_evidence` | 결함에 증거 파일을 base64로 직접 올려 첨부 (최대 10MB) — 실행 아티팩트가 아닌 작은 파일용 |
 | `attach_run_artifact_to_bug` | 자동화 실행의 아티팩트(스크린샷·영상 등)를 서버에서 바로 결함에 복사해 첨부 — 파일 내용을 주고받지 않음 |
-| `get_project_summary` | 테스트 케이스 수/요구사항 커버리지/세션 수/상태별 결함 수를 한 번에 조회 |
+| `get_project_summary` | 테스트 케이스 수/요구사항 커버리지/세션 수/상태별 결함 수/유형별 결함 수(`defectTypeCounts`)를 한 번에 조회 |
 
 API 키로 직접 기록한 실행 결과·결함에는 "🔑 (키 이름)" 배지가 붙어, 사람이 실행한 것과 구분됩니다.
 자동화 스크립트가 첨부된 케이스는 `record_result`로 직접 판정하지 말고 `run_case_automation`을 사용하세요 —
